@@ -1,0 +1,40 @@
+# Sample toolboxrc 
+
+
+&Programs
+{
+	&File Manager: xfe
+	&NEdit: nedit
+	&GIMP: gimp
+	&Blender: blender
+}
+
+&Web \& Mail
+{
+	&Web-Browser: firefox
+	&E-Mail: mutt
+}
+
+&Utilities
+{
+	X&OSView: xosview
+	X&pdf: xpdf
+	&Ghostview: gv
+	X&sane: xsane
+	SEPARATOR
+	X11 &Utilities 
+	{
+		&Text Editor: xedit
+		&Clipboard: xclipboard
+		&Magnifier: xmag
+		&Icon Editor: bitmap
+		M&anpage Viewer: xman
+		Ca&lculator: xcalc
+	}
+}
+
+&Terminals
+{
+	&XTerm: xterm
+	X&Term With Scrollbar: xterm -sb -rightbar
+}

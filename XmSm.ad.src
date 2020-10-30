@@ -1,0 +1,17 @@
+! XmSm app-defaults
+
+*windowManager: PREFIX/bin/emwm
+*launcher: PREFIX/bin/xmtoolbox
+*enableLocking: True
+*blankOnLock: True
+*blankTimeOut: 400
+*numLockState: ON
+*workspaceBackgroundColor: #4C719E
+*lockBackgroundColor: #4C719E
+*lockTimeOut: 600
+*unlockScreenTimeOut: 16
+*primaryXineramaScreen: 0
+*showShutdown: True
+*showReboot: True
+*lockedBy.fontList: -*-new century schoolbook-bold-*-*-*-20-*-*-*-*-*-*-*
+*password.fontList: -*-lucidatypewriter-bold-r-*-*-14-*-*-*-*-*-*-*

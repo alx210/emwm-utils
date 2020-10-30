@@ -1,0 +1,139 @@
+.\" Copyright (C) 2018 alx@fastestcode.org
+.\"  
+.\" Permission is hereby granted, free of charge, to any person obtaining a
+.\" copy of this software and associated documentation files (the "Software"),
+.\" to deal in the Software without restriction, including without limitation
+.\" the rights to use, copy, modify, merge, publish, distribute, sublicense,
+.\" and/or sell copies of the Software, and to permit persons to whom the
+.\" Software is furnished to do so, subject to the following conditions:
+.\" 
+.\" The above copyright notice and this permission notice shall be included in
+.\" all copies or substantial portions of the Software.
+.\" 
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+.\" IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+.\" FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+.\" AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+.\" LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+.\" FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+.\" DEALINGS IN THE SOFTWARE.
+.\"
+.\" 
+.TH XMSM 1
+.SH NAME
+xmsm/xmsession \- X session manager
+.SH SYNOPSIS
+xmsm [options]
+.br
+xinit xmsession
+.br
+xdm \-session xmsession
+.SH DESCRIPTION
+XMSM is a Motif based session manager for XMWM. In provides screen locking,
+workspace configuration settings and shutdown options. It is also responsible
+for starting the window manager (emwm), the application launcher (xmtoolbox)
+and other, user defined applications.
+.SH USAGE
+XMSM is normally started by the accompanying xmsession initialization
+script that sets up the environment, redirects stdout and stderr to
+~/.xmsession.log, loads ~/.Xresources and sources ~/.Xprofile before running
+the session manager.
+.PP
+The xmsession script itself should be invoked either by a display/login manager
+like xdm, or the xinit utility.
+.PP
+~/.Xprofile is the startup file for X sessions and analogous to the ~/.profile
+file where user specific environment variables may be set.
+.PP
+ ~/.sessionetc is a shell script that is processed in a separate shell,
+launched by the session manager, and may be used to automatically start
+user-specific programs.
+.SH RESOURCES
+.TP
+\fBblankOnLock\fP \fIBoolean\fP
+Immediately activate X screen saver in blanking mode when
+screen lock is user engaged. Default is \fBTrue\fp.
+.TP
+\fBblankTimeOut\fP \fISeconds\fP
+Period of inactivity after which X screen saver is activated in
+blanking mode. Set to 0 to disable blanking. 
+Default is 480 seconds. See also: \fBlockTimeOut\fP.
+.TP
+\fBenableLocking\fP \fIBoolean\fP
+Enable screen locking capability. Default is \fBTrue\fp.
+.TP
+\fBnumLockState\fP ON|OFF|KEEP
+Set the keyboard NumLock state. Default is \fBKEEP\fP.
+.TP
+\fBworkspaceBackgroundColor\fP \fIColor\fP
+Background color of the root window.
+.TP
+\fBworkspaceBackgroundImage\fP \fIFile Name\fP
+An image to be used as tiled background on the root window.
+Also see the \fBIMAGE FILES\fP section.
+.TP
+\fBlockBackgroundColor\fP \fIColor\fP
+Background color of the screen lock.
+.TP
+\fBlockBackgroundImage\fP \fIFile Name\fP
+An image to be used as a tiled background on the lock screen.
+Also see the \fBIMAGE FILES\fP section.
+.TP
+\fBlockTimeOut\fP \fISeconds\fP
+Period of inactivity after which screen lock is engaged.
+Set to 0 to disable timed locking.
+Default is 600 seconds. See also: \fBblankTimeOut\fP.
+.TP
+\fBunlockScreenTimeOut\fP \fISeconds\fP
+Period on inactivity after which the password input dialog on the lock
+screen is hidden. It appears again as soon as user activity is detected.
+.TP
+\fBprimaryXineramaScreen\fP \fIInteger\fP
+Index of a xinerama screen to be used for input and message dialogs.
+.TP
+\fBshowShutdown\fP \fIBoolean\fP
+Show the Shutdown option in the exit options dialog. Default is \fBTrue\fP.
+.TP
+\fBshowReboot\fP \fIBoolean\fP
+Show the Reboot option in the exit options dialog. Default is \fBTrue\fP.
+.TP
+\fBwindowManager\fP \fIExecutable File Name\fP
+Window manager executable name. Default is \fImwm\fP.
+.TP
+\fBlauncher\fP \fIExecutable File Name\fP
+Launcher executable name. Default is \fIxmtoolbox\fP.
+.SH IMAGE FILE FORMATS
+Any image file formats supported by the Motif widget toolkit may be specified.
+At the time of writing these include X pixmap/bitmap, PNG and JPEG images.
+.PP
+X Bitmaps are drawn by coloring white bits in the specified background color
+(workspace/lockBackgroundColor resources) and black bits in a darker shade
+of that color.
+.SH SIGNALS
+.PP
+.TP
+\fBSIGUSR1\fP signal engages the screen lock immediately.
+.TP
+\fBSIGTERM\fP signal is handled by presenting a shutdown options dialog
+to the user.
+.SH FILES
+.nf
+~/.sessionetc
+~/.xmsession.log
+~/.Xprofile
+~/.Xresources
+.fi
+.SH CAVEATS
+The xmsm binary must be setuid root for screen locking to work, however
+it discards root privileges at startup and restores them only for short
+periods of runtime to fetch user's password.
+.PP
+XMSM does not implement the ICCCM session save/restore protocol.
+.PP
+The X screen saver extension is used for timed locking and blanking,
+but there are no graphical screensavers provided by XMSM.
+.SH SEE ALSO
+emwm(1) xmtoolbox(1)
+.SH AUTHORS
+.PP
+XMSM was written and is maintained by alx@fastestcode.org

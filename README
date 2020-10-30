@@ -1,0 +1,32 @@
+UTILITIES FOR X/MWM
+===================
+
+XMSM
+----------
+xmsm is simple session manager that provides session configuration and screen
+locking and also launches the window manager and the toolbox.
+
+A startup shell script called xmsession is provided for convenience. It
+redirects program ouput to ~/.xmsession.log, execs ~/.Xprofile and merges
+user's X resource databases prior to launching xmsm.
+
+XMTOOLBOX
+---------
+xmtoolbox is an application launcher/menu configured with a simple text file.
+It also communicates with the session manager to provide lock, log out, and
+shutdown commands.
+
+BUILDING AND INSTALLING
+=======================
+
+X11 and Motif libraries and headers are required to build all utilities.
+
+The default installation prefix is /usr/local, but may be changed by
+editing the Makefile (find the line reading PREFIX=/usr/local and change it
+according to your preferences).
+
+Run make to build, then run 'make install' as root.
+
+The session manager 'xmsm' is installed suid root, this is required for screen
+locking functionality, but root privileges are dropped at startup and are only
+reaquired for a short period of time during password check.

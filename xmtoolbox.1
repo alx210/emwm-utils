@@ -1,0 +1,101 @@
+.\" Copyright (C) 2018 alx@fastestcode.org
+.\" Permission is hereby granted, free of charge, to any person obtaining a
+.\" copy of this software and associated documentation files (the "Software"),
+.\" to deal in the Software without restriction, including without limitation
+.\" the rights to use, copy, modify, merge, publish, distribute, sublicense,
+.\" and/or sell copies of the Software, and to permit persons to whom the
+.\" Software is furnished to do so, subject to the following conditions:
+.\" 
+.\" The above copyright notice and this permission notice shall be included in
+.\" all copies or substantial portions of the Software.
+.\" 
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+.\" IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+.\" FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+.\" AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+.\" LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+.\" FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+.\" DEALINGS IN THE SOFTWARE.
+.\"
+.\" 
+.TH XMTOOLBOX 1
+.SH NAME
+xmtoolbox - application launcher
+.SH SYNOPSIS
+xmtoolbox [-rcfile <file> -hotkey [modifier ... key]]
+.SH DESCRIPTION
+XmToolbox displays a user defined, multi\-level menu of application groups
+and applications. It also interfaces with the xmsm(1) session manager to
+provide screen locking and session commands.
+.SH OPTIONS
+.TP
+\fB\-rcfile\fP \fI<full path>\fP
+Specify a configuration file to use. See \fBCONFIGURATION\fP for details.
+.TP
+\fB\-title\fP \fIString\fP
+Specify toolbox window title. Default is user's login name and the host name.
+.TP
+\fB\-hotkey\fP \fI[Modifier ...] Key\fP
+Hotkey to raise and focus the toolbox window.
+See the resource description below.
+.SH CONFIGURATION
+.PP
+XmToolbox reads its menu configuration from text files. If not specified
+on command line with the \fB-rcfile\fP option, its location defaults to
+\fB.toolboxrc\fP in user's home directory and \fBtoolboxrc\fP in any of system
+configuration directories e.g. /etc/X11, /usr/lib/X11.
+.PP
+The syntax of a configuration file is as follows:
+.PP
+.nf
+# Comment
+
+Menu Title
+{
+	Command Title: Command Line
+	SEPARATOR
+	...
+
+	Submenu Title
+	{
+		...
+	}
+}
+...
+.fi
+.PP
+Prefix any title string character with & to specify a mnemonic. Literal & and
+: characters may be specified by prefixing them with the \\ escape character.
+Comments # and scope {} delimiters may only be placed at the beginning of an
+empty line.
+.PP
+Literal whitespace characters in the command line may be specified either by
+prefixing each one with the \\ escape character, of by placing them into
+parentheses.
+.SH RESOURCES
+.TP
+\fBtitle\fP \fIString\fP
+Defaults to user's login name and the host name: <user>@<host>.
+.TP
+\fBdateTimeDisplay\fP \fIBoolean\fP
+Display date and time. Default is \fITrue\fP.
+.TP
+\fBdateTimeFormat\fP \fIString\fP
+Date and time format string. See strftime(3). Defaults to "%D %l:%M %p".
+.TP
+\fBhotkey\fP [\fIModifier\fP ...] \fIKey\fP | None
+One or more modifiers followed by a key name defining the
+hotkey to raise and focus the toolbox window at any time, or \fINone\fP if no
+hotkey assignment is desired. Possible modifiers are:
+\fBControl, Alt, Shift\fP. Default value is "Control Menu".
+.TP
+\fBrcFile\fP \fIString\fP
+Full path to the configuration file. See \fBCONFIGURATION\fP for details.
+.SH SIGNALS
+.PP
+XmToolbox responds to SIGUSR1 signal by reparsing the menu configuration file.
+.SH SEE ALSO
+xmsm(1) emwm(1)
+.SH AUTHORS
+.PP
+Toolbox was written and is maintained by alx@fastestcode.org
