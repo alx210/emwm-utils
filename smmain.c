@@ -113,7 +113,7 @@ struct session_res {
 #define PREFIX "/usr/local"
 #endif
 
-#define RES_FIELD(f) XtOffset(struct session_res*,f)
+#define RES_FIELD(f) XtOffsetOf(struct session_res,f)
 XtResource xrdb_resources[]={
 	{ "enableLocking","EnableLocking",XmRString,sizeof(Boolean),
 		RES_FIELD(enable_locking),XmRImmediate,(XtPointer)True
@@ -262,7 +262,6 @@ int main(int argc, char **argv)
 	XtRealizeWidget(wshell);
 
 	init_session();
-	
 	set_root_background();
 	set_numlock_state();
 
@@ -1022,8 +1021,9 @@ static void set_root_background(void)
 				shadow,bg_color.pixel);
 
 			if(pm == XmUNSPECIFIED_PIXMAP){
-				log_msg("Failed to load \'%s\'",app_res.wkspace_bg_image);
-				return;
+				log_msg("Failed to load \'%s\'\n",app_res.wkspace_bg_image);
+				app_res.wkspace_bg_image = NULL;
+				continue;
 			}
 			XSetWindowBackgroundPixmap(dpy,RootWindow(dpy,i),pm);
 		}
