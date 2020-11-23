@@ -18,7 +18,8 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-PREFIX = /usr/local
+PREFIX = /usr
+MANDIR = $(PREFIX)/share/man
 
 INCDIRS = -I/usr/local/include
 LIBDIRS = -L/usr/local/lib
@@ -43,21 +44,23 @@ xmsm: $(xmsm_objs)
 	$(CC) -o $@ $(LIBDIRS) $(xmsm_objs) $(xmsm_libs)
 
 xmsession: xmsession.src
-	m4 -DPREFIX="$(PREFIX)" xmsession.src > $@
+	sed s%PREFIX%$(PREFIX)%g xmsession.src > $@
 	chmod 775 $@
 
 XmSm.ad: XmSm.ad.src
-	m4 -DPREFIX="$(PREFIX)" XmSm.ad.src > $@
+	sed s%PREFIX%$(PREFIX)%g XmSm.ad.src > $@
 
 XmToolbox.ad: XmToolbox.ad.src
-	m4 -DPREFIX="$(PREFIX)" XmToolbox.ad.src > $@
+	sed s%PREFIX%$(PREFIX)%g XmToolbox.ad.src > $@
 
 install:
 	install -m775 xmsession $(PREFIX)/bin/xmsession
 	install -m775 xmtoolbox $(PREFIX)/bin/xmtoolbox
 	install -m4775 xmsm $(PREFIX)/bin/xmsm
-	install -m664 xmtoolbox.1 $(PREFIX)/man/man1/xmtoolbox.1
-	install -m664 xmsm.1 $(PREFIX)/man/man1/xmsm.1
+	install -m775 -d $(MANDIR)/man1
+	install -m664 xmtoolbox.1 $(MANDIR)/man1/xmtoolbox.1
+	install -m664 xmsm.1 $(MANDIR)/man1/xmsm.1
+	install -m 775 -d $(PREFIX)/etc/X11/app-defaults
 	if ! [ -f $(PREFIX)/etc/X11/app-defaults/XmSm ]; then \
 	install -m664 XmSm.ad $(PREFIX)/etc/X11/app-defaults/XmSm; \
 	fi
@@ -69,4 +72,6 @@ clean:
 	-rm $(toolbox_objs) $(xmsm_objs) $(executables) $(app_defaults)
 
 depend:
-	mkdep -I/usr/local/include $(toolbox_objs:.o=.c) $(xmsm_objs:.o=.c)
+	$(CC) -MM $(INCDIRS) $(toolbox_objs:.o=.c) $(xmsm_objs:.o=.c) > $@
+
+include depend
