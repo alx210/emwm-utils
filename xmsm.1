@@ -46,18 +46,17 @@ like xdm, or the xinit utility.
 file where user specific environment variables may be set.
 .PP
  ~/.sessionetc is a shell script that is processed in a separate shell,
-launched by the session manager, and may be used to automatically start
-user-specific programs.
+and may be used to start user-specific programs.
 .SH RESOURCES
 .TP
 \fBblankOnLock\fP \fIBoolean\fP
 Immediately activate X screen saver in blanking mode when
 screen lock is user engaged. Default is \fBTrue\fp.
 .TP
-\fBblankTimeOut\fP \fISeconds\fP
+\fBblankTimeout\fP \fISeconds\fP
 Period of inactivity after which X screen saver is activated in
 blanking mode. Set to 0 to disable blanking. 
-Default is 480 seconds. See also: \fBlockTimeOut\fP.
+Default is 480 seconds. See also: \fBlockTimeout\fP.
 .TP
 \fBenableLocking\fP \fIBoolean\fP
 Enable screen locking capability. Default is \fBTrue\fp.
@@ -79,12 +78,12 @@ Background color of the screen lock.
 An image to be used as a tiled background on the lock screen.
 Also see the \fBIMAGE FILES\fP section.
 .TP
-\fBlockTimeOut\fP \fISeconds\fP
+\fBlockTimeout\fP \fISeconds\fP
 Period of inactivity after which screen lock is engaged.
 Set to 0 to disable timed locking.
-Default is 600 seconds. See also: \fBblankTimeOut\fP.
+Default is 600 seconds. See also: \fBblankTimeout\fP.
 .TP
-\fBunlockScreenTimeOut\fP \fISeconds\fP
+\fBunlockScreenTimeout\fP \fISeconds\fP
 Period on inactivity after which the password input dialog on the lock
 screen is hidden. It appears again as soon as user activity is detected.
 .TP

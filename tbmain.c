@@ -122,8 +122,6 @@ static XrmOptionDescRec xrdb_options[]={
 String fallback_res[]={
 	"XmToolbox.x:32",
 	"XmToolbox.y:32",
-	"*menu.cascadeButton.FontList:-*-helvetica-*-o-*-*-12-*-*-*-*-*-*-*:",
-	"*dateTime.FontList:-*-new century schoolbook-medium-i-*-*-12-*-*-*-*-*-*-:",
 	NULL
 };
 

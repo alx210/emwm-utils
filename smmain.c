@@ -122,7 +122,7 @@ XtResource xrdb_resources[]={
 		RES_FIELD(blank_on_lock),XmRImmediate,(XtPointer)True
 	},
 	{ "numLockState","NumLockState",XmRString,sizeof(String),
-		RES_FIELD(numlock_state),XmRImmediate,(XtPointer)"keep"
+		RES_FIELD(numlock_state),XmRImmediate,(XtPointer)"on"
 	},
 	{ "workspaceBackgroundImage","WorkspaceBackgroundImage",
 		XmRString,sizeof(String),
@@ -146,13 +146,13 @@ XtResource xrdb_resources[]={
 	{ "launcher","Launcher",XmRString,sizeof(String),
 		RES_FIELD(launcher),XmRImmediate,(XtPointer)PREFIX"/bin/xmtoolbox"
 	},
-	{ "blankTimeOut","BlankTimeOut",XmRInt,sizeof(unsigned int),
+	{ "blankTimeout","BlankTimeout",XmRInt,sizeof(unsigned int),
 		RES_FIELD(blank_timeout),XmRImmediate,(XtPointer)400
 	},
-	{ "lockTimeOut","LockTimeOut",XmRInt,sizeof(unsigned int),
+	{ "lockTimeout","LockTimeout",XmRInt,sizeof(unsigned int),
 		RES_FIELD(lock_timeout),XmRImmediate,(XtPointer)600
 	},
-	{ "unlockScreenTimeOut","UnlockScreenTimeOut",XmRInt,sizeof(unsigned int),
+	{ "unlockScreenTimeout","UnlockScreenTimeout",XmRInt,sizeof(unsigned int),
 		RES_FIELD(unlock_scr_timeout),XmRImmediate,(XtPointer)8
 	},
 	{ "primaryXineramaScreen","PrimaryXineramaScreen",XmRInt,
@@ -169,12 +169,6 @@ XtResource xrdb_resources[]={
 	}
 };
 #undef RES_FIELD
-
-static String fallback_res[]={
-	"*lockedBy.fontList:-*-new century schoolbook-bold-*-*-*-20-*-*-*-*-*-*-*:",
-	"*password.fontList:-*-lucidatypewriter-bold-r-*-*-14-*-*-*-*-*-*-*:",
-	NULL
-};
 
 #ifndef SHUTDOWN_CMD
 #define SHUTDOWN_CMD "/sbin/poweroff"
@@ -245,7 +239,7 @@ int main(int argc, char **argv)
 
 	wshell=XtVaAppInitialize(&app_context,
 		APP_TITLE,NULL,0,
-		&argc,argv,fallback_res,
+		&argc,argv,NULL,
 		XmNiconName,APP_TITLE,
 		XmNmwmFunctions,0,
 		XmNmwmDecorations,0,
