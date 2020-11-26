@@ -597,7 +597,7 @@ static char* find_rc_file(void)
 	int i;
 	char *sys_paths[32]={
 		"/etc/X11/",
-		"/usr/etc/X11/",
+		"/usr/share/X11/",
 		"/usr/local/etc/X11/",
 		"/usr/lib/X11/",
 		"/usr/local/lib/X11/",
