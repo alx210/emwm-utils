@@ -20,6 +20,7 @@
 
 PREFIX = /usr
 MANDIR = $(PREFIX)/share/man
+RESDIR = $(PREFIX)/share/X11/app-defaults
 
 INCDIRS = -I/usr/local/include
 LIBDIRS = -L/usr/local/lib
@@ -60,13 +61,11 @@ install:
 	install -m775 -d $(MANDIR)/man1
 	install -m664 xmtoolbox.1 $(MANDIR)/man1/xmtoolbox.1
 	install -m664 xmsm.1 $(MANDIR)/man1/xmsm.1
-	install -m 775 -d $(PREFIX)/etc/X11/app-defaults
-	if ! [ -f $(PREFIX)/etc/X11/app-defaults/XmSm ]; then \
-	install -m664 XmSm.ad $(PREFIX)/etc/X11/app-defaults/XmSm; \
-	fi
-	if ! [ -f $(PREFIX)/etc/X11/app-defaults/XmToolbox ]; then \
-	install -m664 XmToolbox.ad $(PREFIX)/etc/X11/app-defaults/XmToolbox; \
-	fi
+	install -m 775 -d $(RESDIR)
+	if ! [ -f $(RESDIR)/XmSm ]; then \
+	install -m664 XmSm.ad $(RESDIR)/XmSm; fi
+	if ! [ -f $(RESDIR)/XmToolbox ]; then \
+	install -m664 XmToolbox.ad $(RESDIR)/XmToolbox; fi
 
 clean:
 	-rm $(toolbox_objs) $(xmsm_objs) $(executables) $(app_defaults)
