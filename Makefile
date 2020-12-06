@@ -68,9 +68,9 @@ install:
 	install -m664 XmToolbox.ad $(RESDIR)/XmToolbox; fi
 
 clean:
-	-rm $(toolbox_objs) $(xmsm_objs) $(executables) $(app_defaults)
+	-rm .depend $(toolbox_objs) $(xmsm_objs) $(executables) $(app_defaults)
 
-depend:
+.depend:
 	$(CC) -MM $(INCDIRS) $(toolbox_objs:.o=.c) $(xmsm_objs:.o=.c) > $@
 
-include depend
+-include .depend
