@@ -324,7 +324,7 @@ static void handle_root_event(XEvent *evt)
 {
 	XKeyEvent *e = (XKeyEvent*)evt;
 	
-	if(e->keycode == hotkey_code &&
+	if(e->type == KeyRelease && e->keycode == hotkey_code &&
 		((e->state & hotkey_mods) || !hotkey_mods)){
 		raise_and_focus(wshell);
 	}
@@ -335,6 +335,7 @@ static void handle_root_event(XEvent *evt)
  */
 void raise_and_focus(Widget w)
 {
+	static Atom XaNET_ACTIVE_WINDOW=None;
 	static Atom XaWM_STATE=None;
 	static Atom XaWM_CHANGE_STATE=None;
 	Atom ret_type;
@@ -342,28 +343,48 @@ void raise_and_focus(Widget w)
 	unsigned long ret_items;
 	unsigned long ret_bytes;
 	uint32_t *state=NULL;
-	
+	XClientMessageEvent evt;
+	Display *dpy = XtDisplay(wshell);
+
 	if(XaWM_STATE==None){
-		XaWM_STATE=XInternAtom(XtDisplay(w),"WM_STATE",False);
-		XaWM_CHANGE_STATE=XInternAtom(XtDisplay(w),"WM_CHANGE_STATE",False);
+		XaWM_STATE=XInternAtom(dpy,"WM_STATE",True);
+		XaWM_CHANGE_STATE=XInternAtom(dpy,"WM_CHANGE_STATE",True);
+		XaNET_ACTIVE_WINDOW=XInternAtom(dpy,"_NET_ACTIVE_WINDOW",True);
 	}
-	if(XGetWindowProperty(XtDisplay(w),XtWindow(w),XaWM_STATE,0,1,
+
+	if(XaWM_STATE==None) return;
+
+	if(XGetWindowProperty(dpy,XtWindow(w),XaWM_STATE,0,1,
 		False,XaWM_STATE,&ret_type,&ret_fmt,&ret_items,
 		&ret_bytes,(unsigned char**)&state)!=Success) return;
 	if(ret_type==XaWM_STATE && ret_fmt && *state==IconicState){
-		XClientMessageEvent evt;
 		evt.type=ClientMessage;
+		evt.send_event=True;
 		evt.message_type=XaWM_CHANGE_STATE;
+		evt.display=dpy;
 		evt.window=XtWindow(w);
 		evt.format=32;
 		evt.data.l[0]=NormalState;
-		XSendEvent(XtDisplay(w),XDefaultRootWindow(XtDisplay(w)),True,
+		XSendEvent(dpy,XDefaultRootWindow(dpy),True,
 			SubstructureNotifyMask|SubstructureRedirectMask,
 			(XEvent*)&evt);
 	}else{
-		XRaiseWindow(XtDisplay(w),XtWindow(w));
-		XSync(XtDisplay(w),False);
-		XSetInputFocus(XtDisplay(w),XtWindow(w),RevertToParent,CurrentTime);
+		if(XaNET_ACTIVE_WINDOW){
+			evt.type=ClientMessage,
+			evt.send_event=True;
+			evt.serial=0;
+			evt.display=dpy;
+			evt.window=XtWindow(w);
+			evt.message_type=XaNET_ACTIVE_WINDOW;
+			evt.format=32;
+
+			XSendEvent(dpy,XDefaultRootWindow(dpy),False,
+				SubstructureNotifyMask|SubstructureRedirectMask,(XEvent*)&evt);
+		}else{
+			XRaiseWindow(dpy,XtWindow(w));
+			XSync(dpy,False);
+			XSetInputFocus(dpy,XtWindow(w),RevertToParent,CurrentTime);
+		}
 	}
 	XFree((char*)state);
 }
