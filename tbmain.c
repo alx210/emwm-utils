@@ -93,7 +93,7 @@ struct tb_resources {
 	Boolean show_commands;
 } app_res;
 
-#define RES_FIELD(f) XtOffset(struct tb_resources*,f)
+#define RES_FIELD(f) XtOffsetOf(struct tb_resources,f)
 XtResource xrdb_resources[]={
 	{ "title","Title",XmRString,sizeof(String),
 		RES_FIELD(title),XmRImmediate,(XtPointer)NULL
@@ -775,52 +775,53 @@ static void user_input_cb(Widget w, XtPointer client_data, XtPointer call_data)
 }
 
 /*
- * Displays a message dialog. If 'confirm' is True, the dialog will
- * have OK+Cancel buttons, OK only otherwise. Returns True if OK was choosen.
+ * Displays a blocking message dialog. If 'confirm' is True, the dialog will
+ * have OK+Cancel buttons, OK only otherwise. Returns True if OK was chosen.
  */
 static Boolean message_dialog(Boolean confirm, const char *message_str)
 {
-	static Widget w=None;
+	Widget wdlg;
 	XmString xm_message_str;
-	Arg args[5];
+	Arg args[8];
 	int n=0;
 	int result=(-1);
+	XmString xm_title;
+	XtCallbackRec callback[]={
+		{(XtCallbackProc)message_dialog_cb,(XtPointer)&result},
+		{(XtCallbackProc)NULL,(XtPointer)NULL}
+	};
 
-	if(w == None){
-		XmString xm_title;
-		XtCallbackRec callback[]={
-			{(XtCallbackProc)message_dialog_cb,(XtPointer)&result},
-			{(XtCallbackProc)NULL,(XtPointer)NULL}
-		};
-
-		n=0;
-		xm_title=XmStringCreateLocalized(APP_TITLE);
-		XtSetArg(args[n],XmNdialogTitle,xm_title); n++;
-		XtSetArg(args[n],XmNokCallback,callback); n++;
-		XtSetArg(args[n],XmNcancelCallback,callback); n++;
-
-		w=XmCreateMessageDialog(wshell,"messageDialog",args,n);
-		XmStringFree(xm_title);
-		if(!confirm) XtUnmanageChild(
-			XmMessageBoxGetChild(w,XmDIALOG_CANCEL_BUTTON));
-		XtUnmanageChild(XmMessageBoxGetChild(w,XmDIALOG_HELP_BUTTON));
-	}
 	xm_message_str=XmStringCreateLocalized((char*)message_str);
-	
-	n=0;	
+	xm_title=XmStringCreateLocalized(APP_TITLE);
+
+	n=0;
+	XtSetArg(args[n],XmNdialogTitle,xm_title); n++;
+	XtSetArg(args[n],XmNokCallback,callback); n++;
+	XtSetArg(args[n],XmNcancelCallback,callback); n++;
+
 	XtSetArg(args[n],XmNdialogType,
 		confirm?XmDIALOG_QUESTION:XmDIALOG_INFORMATION); n++;
 	XtSetArg(args[n],XmNdefaultButtonType,
 		confirm?XmDIALOG_CANCEL_BUTTON:XmDIALOG_OK_BUTTON); n++;
 	XtSetArg(args[n],XmNmessageString,xm_message_str); n++;
-	XtSetValues(w,args,n);
+
+
+	wdlg = XmCreateMessageDialog(wshell,"messageDialog",args,n);
+
+	XmStringFree(xm_title);
 	XmStringFree(xm_message_str);
-	XtManageChild(w);
-	
+
+	if(!confirm) XtUnmanageChild(
+		XmMessageBoxGetChild(wdlg,XmDIALOG_CANCEL_BUTTON));
+	XtUnmanageChild(XmMessageBoxGetChild(wdlg, XmDIALOG_HELP_BUTTON));
+
+	XtManageChild(wdlg);
+
 	while(result == (-1)){
 		XtAppProcessEvent(app_context,XtIMAll);
 	}
 
+	XtDestroyWidget(wdlg);
 	return (Boolean)result;
 }
 
@@ -914,13 +915,7 @@ static int exec_command(const char *cmd_spec)
 	
 	pid=vfork();
 	if(pid == 0){
-		pid_t fpid = getpid();
-
-		#ifdef __linux__
-		setpgid(fpid,fpid);
-		#else
-		setpgrp(fpid,fpid);
-		#endif
+		setsid();
 		
 		if(execvp(argv[0],argv) == (-1))
 			errval=errno;

@@ -94,6 +94,7 @@ static void parse_line(char *line, struct tb_entry *e)
 		}else if(*p == ':'){
 			e->command=skip_blanks(p+1);
 			*p='\0';
+			break;
 		}
 		p++;
 	}
