@@ -870,10 +870,10 @@ static int exec_command(const char *cmd_spec)
 		if(*p == '\"' || *p == '\''){
 			if(pc == '\\'){
 				/* literal " or ' */
-				memmove(p-1,p,strlen(p)+1);
+				memmove(p - 1, p, strlen(p) + 1);
 			}else{
 				/* parenthese, remove it ignoring blanks within */
-				memmove(p,p+1,strlen(p)+1);
+				memmove(p, p + 1, strlen(p));
 				while(*p != '\"' && *p != '\''){
 					if(*p == '\0'){
 						if(argv) free(argv);
@@ -881,14 +881,14 @@ static int exec_command(const char *cmd_spec)
 					}
 					p++;
 				}
-				memmove(p,p+1,strlen(p)+1);
+				memmove(p, p + 1, strlen(p));
 			}
 		}
 		if(isblank(*p) || *p == '\0'){
 			if(*p == '\0') done = 1;
 			if(argv_size < argc+1){
 				char **new_ptr;
-				new_ptr=realloc(argv,argv_size+=64);
+				new_ptr = realloc(argv, (argv_size += 64) * sizeof(char*));
 				if(!new_ptr){
 					free(str);
 					if(argv) free(argv);
