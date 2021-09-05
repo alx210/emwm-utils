@@ -3,3 +3,30 @@
 XmToolbox.x: 32
 XmToolbox.y: 32
 
+! *title: Toolbox
+! *hotkey: Super_L
+
+*dateTimeDisplay: True
+*dateTimeFormat: %D %l:%M %p
+
+*showSuspend: False
+*lockOnSuspend: False
+
+! *suspendCommand: /usr/sbin/zzz
+! *suspendCommand: sudo /usr/sbin/pm-suspend
+
+! *XmPushButtonGadget.renderTable: menu
+! *renderTable.menu.fontType: FONT_IS_XFT
+! *renderTable.menu.fontName: Liberation Sans
+! *renderTable.menu.fontSize: 10
+
+! *XmCascadeButtonGadget*renderTable: cascade
+! *renderTable.cascade.fontType: FONT_IS_XFT
+! *renderTable.cascade.fontName: Liberation Sans
+! *renderTable.cascade.fontStyle: Italic
+! *renderTable.cascade.fontSize: 10
+
+! *dateTime.renderTable: small
+! *renderTable.small.fontType: FONT_IS_XFT
+! *renderTable.small.fontName: Liberation Sans
+! *renderTable.small.fontSize: 9

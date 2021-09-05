@@ -75,6 +75,7 @@ parentheses.
 .SH RESOURCES
 .TP
 \fBtitle\fP \fIString\fP
+This resource is used to specify a custom window title.
 Defaults to user's login name and the host name: <user>@<host>.
 .TP
 \fBdateTimeDisplay\fP \fIBoolean\fP
@@ -87,10 +88,23 @@ Date and time format string. See strftime(3). Defaults to "%D %l:%M %p".
 One or more modifiers followed by a key name defining the
 hotkey to raise and focus the toolbox window at any time, or \fINone\fP if no
 hotkey assignment is desired. Possible modifiers are:
-\fBControl, Alt, Shift\fP. Default value is "Control Menu".
+\fBControl, Alt, Shift\fP. Defaults to None.
 .TP
 \fBrcFile\fP \fIString\fP
 Full path to the configuration file. See \fBCONFIGURATION\fP for details.
+.TP
+\fBshowSuspend\fP \fIBoolean\fP
+If True, \fISuspend\fP command will be displayed in the \fISession\fP sub-menu.
+Default is \fIFalse\fP.
+.TP
+\fBsuspendCommand\fP \fIString\fP
+Command to be executed when \fISuspend\fP is chosen from the \fISession\fP
+sub-menu. The user must have sufficient privileges to run this command.
+Default is system dependent.
+.TP
+\fBlockOnSuspend\fP \fIBoolean\fP
+If True, locks the screen before running the suspend command.
+Default is \fIFalse\fP.
 .SH SIGNALS
 .PP
 XmToolbox responds to SIGUSR1 signal by reparsing the menu configuration file.

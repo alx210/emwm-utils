@@ -75,6 +75,7 @@ static void user_input_cb(Widget,XtPointer,XtPointer);
 static void message_dialog_cb(Widget,XtPointer,XtPointer);
 static void sig_handler(int);
 static void xt_sigusr1_handler(XtPointer,XtSignalId*);
+static void suspend_cb(Widget,XtPointer,XtPointer);
 #ifndef NO_SESSIONMGR
 static void logout_cb(Widget,XtPointer,XtPointer);
 static void lock_cb(Widget,XtPointer,XtPointer);
@@ -86,12 +87,21 @@ static int local_x_err_handler(Display*,XErrorEvent*);
 struct tb_resources {
 	char *title;
 	Boolean show_date_time;
+	Boolean show_suspend;
+	Boolean lock_on_suspend;
+	char *suspend_cmd;
 	char *date_time_fmt;
 	char *rc_file;
 	char *hotkey;
 	unsigned int rcfile_check_time;
 	Boolean show_commands;
 } app_res;
+
+#ifdef __linux__
+#define SUSPEND_COMMAND	"sudo /usr/sbin/pm-suspend"
+#else
+#define SUSPEND_COMMAND "/usr/sbin/zzz"
+#endif
 
 #define RES_FIELD(f) XtOffsetOf(struct tb_resources,f)
 XtResource xrdb_resources[]={
@@ -108,7 +118,16 @@ XtResource xrdb_resources[]={
 		RES_FIELD(rc_file),XmRImmediate,(XtPointer)NULL
 	},
 	{ "hotkey","Hotkey",XmRString,sizeof(String),
-		RES_FIELD(hotkey),XmRImmediate,(XtPointer)"Control Menu"
+		RES_FIELD(hotkey),XmRImmediate,(XtPointer)NULL
+	},
+	{ "showSuspend","ShowSuspend",XmRBoolean,sizeof(Boolean),
+		RES_FIELD(show_suspend),XmRImmediate,(XtPointer)False
+	},
+	{ "lockOnSuspend","LockOnSuspend",XmRBoolean,sizeof(Boolean),
+		RES_FIELD(lock_on_suspend),XmRImmediate,(XtPointer)False
+	},
+	{ "suspendCommand","SuspendCommand",XmRString,sizeof(String),
+		RES_FIELD(suspend_cmd),XmRImmediate,(XtPointer)SUSPEND_COMMAND
 	},
 };
 #undef RES_FIELD
@@ -587,11 +606,22 @@ static void create_utility_widgets(Widget wparent)
 	XtAddCallback(w,XmNactivateCallback,logout_cb,NULL);
 	XmStringFree(title);
 	XtManageChild(w);
+
+	if(app_res.show_suspend) {
+		n=0;
+		title=XmStringCreateLocalized("Suspend");
+		XtSetArg(args[n],XmNlabelString,title); n++;
+		XtSetArg(args[n],XmNmnemonic,(KeySym)'S'); n++;
+		w=XmCreatePushButtonGadget(wpulldown,"suspendMenuButton",args,n);
+		XtAddCallback(w,XmNactivateCallback,suspend_cb,NULL);
+		XmStringFree(title);
+		XtManageChild(w);
+	}
+
 	#endif /* NO_SESSIONMGR */
 	
 	/* The time-date display */
 	w=XmCreateSeparatorGadget(wparent,"separator",NULL,0);
-	XtManageChild(w);
 
 	n=0;
 	XtSetArg(args[n],XmNalignment,XmALIGNMENT_CENTER); n++;
@@ -599,6 +629,7 @@ static void create_utility_widgets(Widget wparent)
 	XtSetArg(args[n],XmNmarginHeight,6); n++;
 	wdate_time=XmCreateLabelGadget(wparent,"dateTime",args,n);
 	if(app_res.show_date_time){
+		XtManageChild(w);
 		XtManageChild(wdate_time);
 		time_update_cb(NULL,NULL);
 	}
@@ -1017,6 +1048,24 @@ static void exec_cb(Widget w, XtPointer client_data, XtPointer call_data)
 		report_exec_error(command,err);
 		
 	if(command) free(command);
+}
+
+static void suspend_cb(Widget w, XtPointer client_data, XtPointer call_data)
+{
+	pid_t pid;
+	int err;
+	
+	if(app_res.lock_on_suspend) {
+		if(get_xmsm_pid(&pid)){
+			kill(pid,SIGUSR1);
+		}else{
+			if(!message_dialog(True,
+				"Cannot lock: failed to retrieve session manager PID.\n"
+				"Proceed?")) return;
+		}
+	}
+	if((err=exec_command(app_res.suspend_cmd)))
+		report_exec_error(app_res.suspend_cmd,err);
 }
 
 static void lock_cb(Widget w, XtPointer client_data, XtPointer call_data)

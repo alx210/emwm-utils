@@ -2,14 +2,32 @@
 
 *windowManager: PREFIX/bin/emwm
 *launcher: PREFIX/bin/xmtoolbox
+
 *enableLocking: True
 *blankOnLock: True
+
 *blankTimeout: 400
-*numLockState: KEEP
-*workspaceBackgroundColor: #4C719E
-*lockBackgroundColor: #4C719E
 *lockTimeout: 600
 *unlockScreenTimeout: 16
-*primaryXineramaScreen: 0
+
+*numLockState: KEEP
+
+*workspaceBackgroundColor: #4C719E
+*lockBackgroundColor: #4C719E
+! *workspaceBackgroundImage: /usr/share/pixmaps/workspace.xpm
+! *lockBackgroundImage: /usr/share/pixmaps/lock.xpm
+
 *showShutdown: True
 *showReboot: True
+*primaryXineramaScreen: 0
+
+! *password.renderTable: variable
+! *renderTable.variable.fontType: FONT_IS_XFT
+! *renderTable.variable.fontName: Liberation Sans
+! *renderTable.variable*fontSize: 14
+
+! *lockedBy.renderTable: serif
+! *renderTable.serif.fontType: FONT_IS_XFT
+! *renderTable.serif.fontName: Liberation Serif
+! *renderTable.serif.fontSize: 20
+! *renderTable.serif.fontStyle: Italic
