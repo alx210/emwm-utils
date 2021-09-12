@@ -1019,9 +1019,9 @@ static void set_root_background(void)
 			if(pm == XmUNSPECIFIED_PIXMAP){
 				log_msg("Failed to load \'%s\'\n",app_res.wkspace_bg_image);
 				app_res.wkspace_bg_image = NULL;
-				continue;
+			} else {
+				XSetWindowBackgroundPixmap(dpy,RootWindow(dpy,i),pm);
 			}
-			XSetWindowBackgroundPixmap(dpy,RootWindow(dpy,i),pm);
 		}
 		XClearWindow(dpy,RootWindow(dpy,i));
 	}
