@@ -153,7 +153,7 @@ static int parse_buffer(void)
 			nlevel++;
 			continue;
 		}else if(*line == '}'){
-			if(!nlevel){
+			if(!nlevel || prev->type != TBE_COMMAND){
 				set_parse_error(iline,"Delimiter \'}\' out of scope");
 				return -1;
 			}
@@ -165,10 +165,17 @@ static int parse_buffer(void)
 		}
 		
 		parse_line(line,&tmp);
-		if(tmp.type == TBE_COMMAND && nlevel < 1){
-			set_parse_error(iline,
-				"Command entries must reside within a menu scope");
-			return -1;
+		if(tmp.type == TBE_COMMAND) {
+			if(nlevel < 1){
+				set_parse_error(iline,
+					"Command entries must reside within a menu scope");
+				return -1;
+			}
+			if(!strlen(tmp.command)) {
+				set_parse_error(iline,
+					"Command string expected after ':' ");
+				return -1;
+			}
 		}
 		
 		tmp.level=nlevel;
