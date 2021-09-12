@@ -329,21 +329,23 @@ static void lock_screen(void)
 	/* make sure we can authenticate before locking */
 	login = getlogin();
 	
-	set_privileges(True);
-	
-	passwd = getpwnam(login);
-	if(passwd && passwd->pw_passwd[0] != '*') can_auth = True;
-	
-	#ifdef __linux__
-	if(passwd && passwd->pw_passwd[0] == 'x'){
-		struct spwd *spwd = getspnam(login);
-		if(spwd) can_auth = True;	
+	if(set_privileges(True)) {
+
+		passwd = getpwnam(login);
+		if(passwd && passwd->pw_passwd[0] != '*') can_auth = True;
+
+		#ifdef __linux__
+		if(passwd && passwd->pw_passwd[0] == 'x'){
+			struct spwd *spwd = getspnam(login);
+			if(spwd) can_auth = True;	
+		}
+		#endif /* __linux __ */
+
+		set_privileges(False);
 	}
-	#endif /* __linux __ */
-	
-	set_privileges(False);
 
 	if(!can_auth){
+		XBell(XtDisplay(wshell), 100);
 		log_msg("Cannot authenticate. Screen locking disabled!\n");
 		app_res.enable_locking = False;
 		return;
@@ -1207,17 +1209,24 @@ static void xt_sigterm_handler(XtPointer ptr, XtSignalId *id)
 		if(set_privileges(True)){
 			rv = launch_process(command);
 			set_privileges(False);
+			if(rv){
+				XBell(XtDisplay(wshell), 100);
+				log_msg("Cannot exec %s: %s\n",command,strerror(rv));
+				return;
+			}
 		}else{
+			XBell(XtDisplay(wshell), 100);
 			log_msg("Cannot exec %s with elevated privileges.\n",command);
+			return;
 		}
 		#else
 		rv = launch_process(command);
-		#endif /* UNPRIVILEGED_SHUTDOWN */
-
 		if(rv){
+			XBell(XtDisplay(wshell), 100);
 			log_msg("Cannot exec %s: %s\n",command,strerror(rv));
 			return;
 		}
+		#endif /* UNPRIVILEGED_SHUTDOWN */
 	}
 
 	XDeleteProperty(XtDisplay(wshell),
