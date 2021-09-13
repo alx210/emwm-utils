@@ -1082,7 +1082,7 @@ static void logout_cb(Widget w, XtPointer client_data, XtPointer call_data)
 {
 	pid_t pid;
 	if(get_xmsm_pid(&pid)){
-		kill(pid,SIGTERM);
+		kill(pid,SIGUSR2);
 	}else{
 		message_dialog(False,"Cannot retrieve session manager PID.");
 	}

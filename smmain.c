@@ -63,8 +63,8 @@
 static Boolean set_privileges(Boolean);
 static void init_session(void);
 static void sigchld_handler(int);
-static void sigterm_handler(int);
-static void sigusr_handler(int);
+static void sigusr1_handler(int);
+static void sigusr2_handler(int);
 static void create_locking_widgets(void);
 static void get_screen_size(Dimension*,Dimension*,Position*,Position*);
 static void lock_screen(void);
@@ -86,8 +86,8 @@ static void process_sessionetc(void);
 static void set_root_background(void);
 static void set_numlock_state(void);
 static int local_x_err_handler(Display*,XErrorEvent*);
-static void xt_sigterm_handler(XtPointer,XtSignalId*);
 static void xt_sigusr1_handler(XtPointer,XtSignalId*);
+static void xt_sigusr2_handler(XtPointer,XtSignalId*);
 
 /* Application resources */
 struct session_res {
@@ -195,8 +195,8 @@ static Widget wpasswd;
 static Widget wmessage;
 static XtIntervalId unlock_widget_timer=None;
 static XtIntervalId lock_timer=None;
-static XtSignalId xt_sigterm;
-static XtSignalId xt_sigusr;
+static XtSignalId xt_sigusr1;
+static XtSignalId xt_sigusr2;
 static Boolean scr_locked = False;
 static Boolean covers_up = False;
 static Boolean unlock_up = False;
@@ -230,10 +230,9 @@ int main(int argc, char **argv)
 	}
 
 	signal(SIGCHLD,sigchld_handler);
-	signal(SIGTERM,sigterm_handler);
-	signal(SIGUSR1,sigusr_handler);
-	signal(SIGUSR2,sigusr_handler);
-	
+	signal(SIGUSR1,sigusr1_handler);
+	signal(SIGUSR2,sigusr2_handler);
+
 	XtSetLanguageProc(NULL,NULL,NULL);
 	XtToolkitInitialize();
 
@@ -264,9 +263,9 @@ int main(int argc, char **argv)
 		create_locking_widgets();
 	}
 
-	xt_sigterm = XtAppAddSignal(app_context,xt_sigterm_handler,NULL);
-	xt_sigusr = XtAppAddSignal(app_context,xt_sigusr1_handler,NULL);
-	
+	xt_sigusr1 = XtAppAddSignal(app_context,xt_sigusr1_handler,NULL);
+	xt_sigusr2 = XtAppAddSignal(app_context,xt_sigusr2_handler,NULL);
+
 	rv = launch_process(app_res.window_manager);
 	if(rv){
 		log_msg("Failed to exec the window manager (%s): %s\n",
@@ -1084,7 +1083,7 @@ static void set_numlock_state(void)
 /*
  * Displays a modal dialog asking the user to confirm leaving the session.
  */
-static void xt_sigterm_handler(XtPointer ptr, XtSignalId *id)
+static void xt_sigusr2_handler(XtPointer ptr, XtSignalId *id)
 {
 	static Widget wdlgshell = None;
 	static Widget wdialog;
@@ -1260,14 +1259,14 @@ static void blank_delay_timeout_cb(XtPointer ptr, XtIntervalId *iid)
  * Low level signal handlers.
  * These just turn async signals into Xt callbacks.
  */
-static void sigterm_handler(int sig)
+static void sigusr2_handler(int sig)
 {
-	XtNoticeSignal(xt_sigterm);
+	XtNoticeSignal(xt_sigusr2);
 }
 
-static void sigusr_handler(int sig)
+static void sigusr1_handler(int sig)
 {
-	if(sig == SIGUSR1) XtNoticeSignal(xt_sigusr);
+	XtNoticeSignal(xt_sigusr1);
 }
 
 static void sigchld_handler(int sig)
