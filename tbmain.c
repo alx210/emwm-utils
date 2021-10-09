@@ -220,11 +220,13 @@ int main(int argc, char **argv)
 	
 	if(rc_file_path){
 		if(access(rc_file_path,F_OK|R_OK) == -1){
+			message_dialog(False, "Cannot access RC file. Exiting!");
 			perror(rc_file_path);
 			return EXIT_FAILURE;
 		}
 		if(!construct_menu()) return EXIT_FAILURE;
 	}else{
+		message_dialog(False, "RC file not found, nor specified. Exiting!");
 		fprintf(stderr,"%s not found, nor specified.\n",RC_NAME);
 		return EXIT_FAILURE;
 	}
@@ -649,7 +651,6 @@ static char* find_rc_file(void)
 	int i;
 	char *sys_paths[32]={
 		"/etc/X11/",
-		"/usr/share/X11/",
 		"/usr/local/etc/X11/",
 		"/usr/lib/X11/",
 		"/usr/local/lib/X11/",

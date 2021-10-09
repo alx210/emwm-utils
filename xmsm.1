@@ -29,12 +29,12 @@ xinit xmsession
 .br
 xdm \-session xmsession
 .SH DESCRIPTION
-XMSM is a Motif based session manager for XMWM. In provides screen locking,
+XmSm is a Motif based session manager for EMWM. In provides screen locking,
 workspace configuration settings and shutdown options. It is also responsible
 for starting the window manager (emwm), the application launcher (xmtoolbox)
 and other, user defined applications.
 .SH USAGE
-XMSM is normally started by the accompanying xmsession initialization
+XmSm is normally started by the accompanying xmsession initialization
 script that sets up the environment, redirects stdout and stderr to
 ~/.xmsession.log, loads ~/.Xresources and sources ~/.Xprofile before running
 the session manager.
@@ -113,8 +113,7 @@ of that color.
 .TP
 \fBSIGUSR1\fP signal engages the screen lock immediately.
 .TP
-\fBSIGUSR2\fP signal is handled by presenting a shutdown options dialog
-to the user.
+\fBSIGUSR2\fP signal is handled by presenting the shutdown options dialog to the user.
 .SH FILES
 .nf
 ~/.sessionetc
@@ -127,12 +126,12 @@ The xmsm binary must be setuid root for screen locking to work, however
 it discards root privileges at startup and restores them only for short
 periods of runtime to fetch user's password.
 .PP
-XMSM does not implement the ICCCM session save/restore protocol.
+XmSm does not implement the ICCCM session save/restore protocol.
 .PP
 The X screen saver extension is used for timed locking and blanking,
-but there are no graphical screensavers provided by XMSM.
+but there are no graphical screensavers provided by XmSm.
 .SH SEE ALSO
 emwm(1) xmtoolbox(1)
 .SH AUTHORS
 .PP
-XMSM was written and is maintained by alx@fastestcode.org
+XmSm was written and is maintained by alx@fastestcode.org

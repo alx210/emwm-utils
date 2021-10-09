@@ -4,7 +4,6 @@
 #-------------------------------------------------------------------------------
 
 LOGFILE="$HOME/.xmsession.log"
-XSESSION="$HOME/.xsession"
 XPROFILE="$HOME/.Xprofile"
 XRESOURCES="$HOME/.Xresources"
 XDEFAULTS="$HOME/.Xdefaults"
@@ -26,10 +25,5 @@ if [ -f "$XRESOURCES" ]; then
 	xrdb -merge "$XRESOURCES"
 fi
 
-if [ -x "$XSESSION" ]; then
-	echo "Execing $XSESSION"
-	exec /bin/sh "$XSESSION"
-else
-	echo "Starting the session manager"
-	exec PREFIX/bin/xmsm
-fi
+echo "Starting the session manager"
+exec PREFIX/bin/xmsm

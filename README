@@ -1,5 +1,5 @@
-UTILITIES FOR X/MWM
-===================
+UTILITIES FOR EMWM
+==================
 
 XMSM
 ----------
@@ -21,12 +21,18 @@ BUILDING AND INSTALLING
 
 X11 and Motif libraries and headers are required to build all utilities.
 
-The default installation prefix is /usr/local, but may be changed by
-editing the Makefile (find the line reading PREFIX=/usr/local and change it
-according to your preferences).
+The default installation prefix is /usr, which may be changed by modifying
+PREFIX, MANDIR and RESDIR variables in the Makefile.
 
 Run make to build, then run 'make install' as root.
+
+NOTES
+-----
 
 The session manager 'xmsm' is installed suid root, this is required for screen
 locking functionality, but root privileges are dropped at startup and are only
 reaquired for a short period of time during password check.
+
+Xmtoolbox requires either ~/.toolboxrc or /etc/X11/toolboxrc to be present.
+There is a sample toolboxrc file in the source directory, which may be used as
+a starting point. More info in xmtoolbox(1).

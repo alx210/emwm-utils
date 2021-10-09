@@ -45,33 +45,38 @@ on command line with the \fB-rcfile\fP option, its location defaults to
 \fB.toolboxrc\fP in user's home directory and \fBtoolboxrc\fP in any of system
 configuration directories e.g. /etc/X11, /usr/lib/X11.
 .PP
-The syntax of a configuration file is as follows:
+A menu is defined by specifying the menu title followed by one or more menu item
+definitions enclosed in {...} brackets. Menu items are specified one per line,
+starting with the title string separated by a semicolon from the command to be
+executed. A horizontal line may be added between menu items with the special
+identifier SEPARATOR. Any character in the title string may be prefixed with the
+ampersand character to specify a mnemonic. Comments may be entered following the
+# character at the beginning of a line. Sub\-menus may be defined by placing
+them within the scope of the parent menu. Menu scope {} delimiters may only be
+placed at the beginning of an otherwise empty line. 
+.PP
+Literal & and : characters in title strings may be specified by prefixing them
+with the \\ escape character. Literal whitespace characters in the command
+string may be specified either by escaping them with \\, or enclosing the part
+of the string in parentheses.
 .PP
 .nf
 # Comment
 
 Menu Title
 {
-	Command Title: Command Line
+	Title: Command
 	SEPARATOR
 	...
 
 	Submenu Title
 	{
+		Title: Command
 		...
 	}
 }
 ...
 .fi
-.PP
-Prefix any title string character with & to specify a mnemonic. Literal & and
-: characters may be specified by prefixing them with the \\ escape character.
-Comments # and scope {} delimiters may only be placed at the beginning of an
-empty line.
-.PP
-Literal whitespace characters in the command line may be specified either by
-prefixing each one with the \\ escape character, of by placing them into
-parentheses.
 .SH RESOURCES
 .TP
 \fBtitle\fP \fIString\fP

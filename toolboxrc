@@ -1,9 +1,9 @@
-# Sample toolboxrc 
-
+# Sample toolboxrc, provided as a starting point for custom configuration 
+# Copy this file to ~/.toolboxrc for per-user configuration
 
 &Programs
 {
-	&File Manager: xfe
+	&File Manager: mc
 	&NEdit: nedit
 	&GIMP: gimp
 	&Blender: blender
@@ -11,7 +11,7 @@
 
 &Web \& Mail
 {
-	&Web-Browser: firefox
+	&Web-Browser: links -g
 	&E-Mail: mutt
 }
 
@@ -20,7 +20,6 @@
 	X&OSView: xosview
 	X&pdf: xpdf
 	&Ghostview: gv
-	X&sane: xsane
 	SEPARATOR
 	X11 &Utilities 
 	{

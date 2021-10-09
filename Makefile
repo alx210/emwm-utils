@@ -20,7 +20,7 @@
 
 PREFIX = /usr
 MANDIR = $(PREFIX)/share/man
-RESDIR = $(PREFIX)/share/X11/app-defaults
+RESDIR = /etc/X11/app-defaults
 
 INCDIRS = -I/usr/local/include
 LIBDIRS = -L/usr/local/lib
