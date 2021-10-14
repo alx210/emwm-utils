@@ -58,17 +58,13 @@ static void setup_hotkeys(void);
 static int xgrabkey_err_handler(Display*,XErrorEvent*);
 static void handle_root_event(XEvent*);
 void raise_and_focus(Widget w);
-static void make_button_pixmaps(Widget,const unsigned char*,
-	unsigned int,unsigned int,Pixmap*,Pixmap*,Pixmap*);
 static void time_update_cb(XtPointer,XtIntervalId*);
-static void rcfile_check_cb(XtPointer,XtIntervalId*);
 static int exec_command(const char*);
 static void report_exec_error(const char*,int);
 static void report_rcfile_error(const char*,const char*);
 static char* get_user_input(Widget,const char*);
 static Boolean message_dialog(Boolean,const char*);
 static void wait_state(Boolean);
-static void hotkey_cb(Widget,XtPointer,XEvent*,Boolean*);
 static void exec_cb(Widget,XtPointer,XtPointer);
 static void menu_command_cb(Widget,XtPointer,XtPointer);
 static void user_input_cb(Widget,XtPointer,XtPointer);
@@ -79,7 +75,7 @@ static void suspend_cb(Widget,XtPointer,XtPointer);
 #ifndef NO_SESSIONMGR
 static void logout_cb(Widget,XtPointer,XtPointer);
 static void lock_cb(Widget,XtPointer,XtPointer);
-static Boolean get_xmsm_pid(pid_t*);
+static Boolean send_xmsm_cmd(const char *command);
 static int local_x_err_handler(Display*,XErrorEvent*);
 #endif /* NO_SESSIONMGR */
 
@@ -88,20 +84,12 @@ struct tb_resources {
 	char *title;
 	Boolean show_date_time;
 	Boolean show_suspend;
-	Boolean lock_on_suspend;
-	char *suspend_cmd;
 	char *date_time_fmt;
 	char *rc_file;
 	char *hotkey;
 	unsigned int rcfile_check_time;
 	Boolean show_commands;
 } app_res;
-
-#ifdef __linux__
-#define SUSPEND_COMMAND	"sudo /usr/sbin/pm-suspend"
-#else
-#define SUSPEND_COMMAND "/usr/sbin/zzz"
-#endif
 
 #define RES_FIELD(f) XtOffsetOf(struct tb_resources,f)
 XtResource xrdb_resources[]={
@@ -121,14 +109,8 @@ XtResource xrdb_resources[]={
 		RES_FIELD(hotkey),XmRImmediate,(XtPointer)NULL
 	},
 	{ "showSuspend","ShowSuspend",XmRBoolean,sizeof(Boolean),
-		RES_FIELD(show_suspend),XmRImmediate,(XtPointer)False
-	},
-	{ "lockOnSuspend","LockOnSuspend",XmRBoolean,sizeof(Boolean),
-		RES_FIELD(lock_on_suspend),XmRImmediate,(XtPointer)False
-	},
-	{ "suspendCommand","SuspendCommand",XmRString,sizeof(String),
-		RES_FIELD(suspend_cmd),XmRImmediate,(XtPointer)SUSPEND_COMMAND
-	},
+		RES_FIELD(show_suspend),XmRImmediate,(XtPointer)True
+	}
 };
 #undef RES_FIELD
 
@@ -139,8 +121,8 @@ static XrmOptionDescRec xrdb_options[]={
 };
 
 String fallback_res[]={
-	"XmToolbox.x:32",
-	"XmToolbox.y:32",
+	"XmToolbox.x:8",
+	"XmToolbox.y:28",
 	NULL
 };
 
@@ -153,7 +135,10 @@ String fallback_res[]={
 #ifndef NO_SESSIONMGR
 Atom xa_xmsm_mgr=None;
 Atom xa_xmsm_pid=None;
+Atom xa_xmsm_cmd=None;
 int (*def_x_err_handler)(Display*,XErrorEvent*)=NULL;
+const char xmsm_cmd_err[] =
+	"Cannot retrieve session manager PID.\nxmsm not running?";
 #endif /* NO_SESSIONMGR */
 
 XtAppContext app_context;
@@ -238,6 +223,7 @@ int main(int argc, char **argv)
 	#ifndef NO_SESSIONMGR
 	xa_xmsm_mgr = XInternAtom(XtDisplay(wshell),XMSM_ATOM_NAME,True);
 	xa_xmsm_pid = XInternAtom(XtDisplay(wshell),XMSM_PID_ATOM_NAME,True);
+	xa_xmsm_cmd = XInternAtom(XtDisplay(wshell),XMSM_CMD_ATOM_NAME,True);
 	#endif
 
 	XtRealizeWidget(wshell);
@@ -992,7 +978,10 @@ static void menu_command_cb(Widget w,
 }
 
 #ifndef NO_SESSIONMGR
-static Boolean get_xmsm_pid(pid_t *pid)
+/*
+ * Sends a command message to XmSm. Returns True on success.
+ */
+static Boolean send_xmsm_cmd(const char *command)
 {
 	Display *dpy = XtDisplay(wshell);
 	Window root = DefaultRootWindow(dpy);
@@ -1002,6 +991,9 @@ static Boolean get_xmsm_pid(pid_t *pid)
 	unsigned long ret_items;
 	unsigned long left_items;
 	unsigned char *prop_data;
+	XTextProperty text_prop = {
+		(unsigned char*)command, XA_STRING, 8, strlen(command)
+	};
 	
 	if(xa_xmsm_mgr == None || xa_xmsm_pid == None) return False;
 	
@@ -1013,22 +1005,32 @@ static Boolean get_xmsm_pid(pid_t *pid)
 		XFree(prop_data);
 
 		def_x_err_handler = XSetErrorHandler(local_x_err_handler);
+		
 		XGetWindowProperty(dpy,shell,xa_xmsm_pid,0,sizeof(Window),
 			False,XA_INTEGER,&ret_type,&ret_format,
 			&ret_items,&left_items,&prop_data);
-		XSetErrorHandler(def_x_err_handler);
 			
 		if(ret_type == XA_INTEGER){
-			*pid = *((pid_t*)prop_data);
+			pid_t pid = *((pid_t*)prop_data);
 			XFree(prop_data);
+			
+			XSetTextProperty(dpy, shell, &text_prop, xa_xmsm_cmd);
+			XSync(dpy, False);
+			
+			XSetErrorHandler(def_x_err_handler);
+			
+			kill(pid, SIGUSR2);
+			
 			return True;
 		}
+		XSync(dpy, False);
+		XSetErrorHandler(def_x_err_handler);
 	}
 	return False;
 }
 
 /*
- * This is temporarily set in get_xmsm_pid just to catch BadWindow errors
+ * This is temporarily set in send_xmsm_pid just to catch BadWindow errors
  * originating from a window handle stored on root in MGR_ATOM_NAME by
  * xmsm process that is no longer active
  */
@@ -1053,39 +1055,22 @@ static void exec_cb(Widget w, XtPointer client_data, XtPointer call_data)
 
 static void suspend_cb(Widget w, XtPointer client_data, XtPointer call_data)
 {
-	pid_t pid;
-	int err;
-	
-	if(app_res.lock_on_suspend) {
-		if(get_xmsm_pid(&pid)){
-			kill(pid,SIGUSR1);
-		}else{
-			if(!message_dialog(True,
-				"Cannot lock: failed to retrieve session manager PID.\n"
-				"Proceed?")) return;
-		}
+	if(!send_xmsm_cmd(XMSM_SUSPEND_CMD)){
+		message_dialog(False, xmsm_cmd_err);
 	}
-	if((err=exec_command(app_res.suspend_cmd)))
-		report_exec_error(app_res.suspend_cmd,err);
 }
 
 static void lock_cb(Widget w, XtPointer client_data, XtPointer call_data)
 {
-	pid_t pid;
-	if(get_xmsm_pid(&pid)){
-		kill(pid,SIGUSR1);
-	}else{
-		message_dialog(False,"Cannot retrieve session manager PID.");
+	if(!send_xmsm_cmd(XMSM_LOCK_CMD)){
+		message_dialog(False, xmsm_cmd_err);
 	}
 }
 
 static void logout_cb(Widget w, XtPointer client_data, XtPointer call_data)
 {
-	pid_t pid;
-	if(get_xmsm_pid(&pid)){
-		kill(pid,SIGUSR2);
-	}else{
-		message_dialog(False,"Cannot retrieve session manager PID.");
+	if(!send_xmsm_cmd(XMSM_LOGOUT_CMD)){
+		message_dialog(False, xmsm_cmd_err);
 	}
 }
 #endif /* NO_SESSIONMGR */
@@ -1094,8 +1079,7 @@ static void sig_handler(int sig)
 {
 	if(sig == SIGCHLD){
 		int status;
-		pid_t pid;
-		pid=wait(&status);
+		wait(&status);
 	}else if(sig == SIGUSR1){
 		XtNoticeSignal(xt_sigusr1);
 	}

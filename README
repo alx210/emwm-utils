@@ -7,7 +7,7 @@ xmsm is simple session manager that provides session configuration and screen
 locking and also launches the window manager and the toolbox.
 
 A startup shell script called xmsession is provided for convenience. It
-redirects program ouput to ~/.xmsession.log, execs ~/.Xprofile and merges
+redirects program output to ~/.xmsession.log, execs ~/.Xprofile and merges
 user's X resource databases prior to launching xmsm.
 
 XMTOOLBOX
@@ -18,21 +18,22 @@ shutdown commands.
 
 BUILDING AND INSTALLING
 =======================
-
 X11 and Motif libraries and headers are required to build all utilities.
 
-The default installation prefix is /usr, which may be changed by modifying
-PREFIX, MANDIR and RESDIR variables in the Makefile.
+Make sure to review the Makefile and adjust PREFIX, MANDIR and RESDIR variables
+to file system locations appropriate for your system.
 
 Run make to build, then run 'make install' as root.
 
 NOTES
------
-
-The session manager 'xmsm' is installed suid root, this is required for screen
-locking functionality, but root privileges are dropped at startup and are only
-reaquired for a short period of time during password check.
+---------
+System shutdown, reboot and suspend commands can be altered at compile time
+only. Edit constants in smconf.h if necessary.
 
 Xmtoolbox requires either ~/.toolboxrc or /etc/X11/toolboxrc to be present.
 There is a sample toolboxrc file in the source directory, which may be used as
 a starting point. More info in xmtoolbox(1).
+
+The session manager 'xmsm' is installed suid root, this is required for screen
+locking functionality, but root privileges are dropped at startup and are only
+reacquired for short periods of time when necessary.

@@ -17,8 +17,6 @@
 .\" LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 .\" FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 .\" DEALINGS IN THE SOFTWARE.
-.\"
-.\" 
 .TH XMSM 1
 .SH NAME
 xmsm/xmsession \- X session manager
@@ -61,15 +59,9 @@ Default is 480 seconds. See also: \fBlockTimeout\fP.
 \fBenableLocking\fP \fIBoolean\fP
 Enable screen locking capability. Default is \fBTrue\fp.
 .TP
-\fBnumLockState\fP ON|OFF|KEEP
-Set the keyboard NumLock state. Default is \fBKEEP\fP.
-.TP
-\fBworkspaceBackgroundColor\fP \fIColor\fP
-Background color of the root window.
-.TP
-\fBworkspaceBackgroundImage\fP \fIFile Name\fP
-An image to be used as tiled background on the root window.
-Also see the \fBIMAGE FILES\fP section.
+\fBlauncher\fP \fIString\fP
+Full path to the Launcher executable name.
+Default is (installation prefix)/xmtoolbox
 .TP
 \fBlockBackgroundColor\fP \fIColor\fP
 Background color of the screen lock.
@@ -82,6 +74,13 @@ Also see the \fBIMAGE FILES\fP section.
 Period of inactivity after which screen lock is engaged.
 Set to 0 to disable timed locking.
 Default is 600 seconds. See also: \fBblankTimeout\fP.
+.TP
+\fBlockOnSuspend\fP \fIBoolean\fP
+If True, locks the screen before executing the suspend command.
+Default is \fIFalse\fP.
+.TP
+\fBnumLockState\fP ON|OFF|KEEP
+Set the keyboard NumLock state. Default is \fBKEEP\fP.
 .TP
 \fBunlockScreenTimeout\fP \fISeconds\fP
 Period on inactivity after which the password input dialog on the lock
@@ -96,11 +95,16 @@ Show the Shutdown option in the exit options dialog. Default is \fBTrue\fP.
 \fBshowReboot\fP \fIBoolean\fP
 Show the Reboot option in the exit options dialog. Default is \fBTrue\fP.
 .TP
-\fBwindowManager\fP \fIExecutable File Name\fP
-Window manager executable name. Default is \fImwm\fP.
+\fBworkspaceBackgroundColor\fP \fIColor\fP
+Background color of the root window.
 .TP
-\fBlauncher\fP \fIExecutable File Name\fP
-Launcher executable name. Default is \fIxmtoolbox\fP.
+\fBworkspaceBackgroundImage\fP \fIFile Name\fP
+An image to be used as tiled background on the root window.
+Also see the \fBIMAGE FILES\fP section.
+.TP
+\fBwindowManager\fP \fIString\fP
+Full path to the window manager executable name.
+Default is (installation prefix)/emwm
 .SH IMAGE FILE FORMATS
 Any image file formats supported by the Motif widget toolkit may be specified.
 At the time of writing these include X pixmap/bitmap, PNG and JPEG images.
@@ -108,12 +112,6 @@ At the time of writing these include X pixmap/bitmap, PNG and JPEG images.
 X Bitmaps are drawn by coloring white bits in the specified background color
 (workspace/lockBackgroundColor resources) and black bits in a darker shade
 of that color.
-.SH SIGNALS
-.PP
-.TP
-\fBSIGUSR1\fP signal engages the screen lock immediately.
-.TP
-\fBSIGUSR2\fP signal is handled by presenting the shutdown options dialog to the user.
 .SH FILES
 .nf
 ~/.sessionetc
@@ -121,6 +119,10 @@ of that color.
 ~/.Xprofile
 ~/.Xresources
 .fi
+.SH SIGNALS
+.PP
+xmsm responds to SIGUSR1 by engaging screen lock.
+SIGUSR2 is used by xmtoolbox to pass commands to xmsm.
 .SH CAVEATS
 The xmsm binary must be setuid root for screen locking to work, however
 it discards root privileges at startup and restores them only for short

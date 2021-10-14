@@ -25,9 +25,9 @@ RESDIR = /etc/X11/app-defaults
 INCDIRS = -I/usr/local/include
 LIBDIRS = -L/usr/local/lib
 
-CFLAGS += -O2 -DPREFIX='"$(PREFIX)"' $(INCDIRS)
+CFLAGS += -Wall -O2 -DPREFIX='"$(PREFIX)"' $(INCDIRS)
 toolbox_libs =  -lXm -lXt -lX11
-xmsm_libs = -lcrypt -lXm -lXt -lXss -lXinerama -lX11
+xmsm_libs = -lcrypt -lXm -lXt -lXss -lXrandr -lXinerama -lX11
 
 toolbox_objs = tbmain.o tbparse.o
 xmsm_objs = smmain.o

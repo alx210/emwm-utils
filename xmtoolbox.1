@@ -100,16 +100,7 @@ Full path to the configuration file. See \fBCONFIGURATION\fP for details.
 .TP
 \fBshowSuspend\fP \fIBoolean\fP
 If True, \fISuspend\fP command will be displayed in the \fISession\fP sub-menu.
-Default is \fIFalse\fP.
-.TP
-\fBsuspendCommand\fP \fIString\fP
-Command to be executed when \fISuspend\fP is chosen from the \fISession\fP
-sub-menu. The user must have sufficient privileges to run this command.
-Default is system dependent.
-.TP
-\fBlockOnSuspend\fP \fIBoolean\fP
-If True, locks the screen before running the suspend command.
-Default is \fIFalse\fP.
+Default is \fITrue\fP.
 .SH SIGNALS
 .PP
 XmToolbox responds to SIGUSR1 signal by reparsing the menu configuration file.

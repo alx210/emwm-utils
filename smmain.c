@@ -21,7 +21,7 @@
  */
 
 /*
- * A simple session manager for use with MWM and xmtoolbox
+ * A simple session manager for use with EMWM and xmtoolbox
  */
 
 #include <stdlib.h>
@@ -51,6 +51,9 @@
 #include <X11/cursorfont.h>
 #include <X11/extensions/Xinerama.h>
 #include <X11/extensions/scrnsaver.h>
+#include <X11/extensions/Xrandr.h>
+#include <X11/Xlibint.h>
+#include <X11/Xatom.h>
 #include <errno.h>
 #include <assert.h>
 #ifdef __linux__
@@ -58,6 +61,7 @@
 #include <shadow.h>
 #endif
 #include "smglobal.h"
+#include "smconf.h"
 
 /* Local prototypes */
 static Boolean set_privileges(Boolean);
@@ -88,6 +92,10 @@ static void set_numlock_state(void);
 static int local_x_err_handler(Display*,XErrorEvent*);
 static void xt_sigusr1_handler(XtPointer,XtSignalId*);
 static void xt_sigusr2_handler(XtPointer,XtSignalId*);
+static void exit_session_dialog(void);
+static void error_dialog(void);
+static Boolean exec_sys_cmd(const char *command);
+static void reconfigure_widgets(XRRScreenChangeNotifyEvent *evt);
 
 /* Application resources */
 struct session_res {
@@ -106,6 +114,7 @@ struct session_res {
 	unsigned int prim_xinerama_screen;
 	Boolean show_shutdown;
 	Boolean show_reboot;
+	Boolean lock_on_suspend;
 } app_res;
 
 #ifndef PREFIX
@@ -140,9 +149,6 @@ XtResource xrdb_resources[]={
 		XmRPixel,sizeof(Pixel),RES_FIELD(lock_bg_pixel),
 		XmRString, (XtPointer)"#4C719E"
 	},
-	{ "windowManager","WindowManager",XmRString,sizeof(String),
-		RES_FIELD(window_manager),XmRImmediate,(XtPointer)PREFIX"/bin/emwm"
-	},
 	{ "launcher","Launcher",XmRString,sizeof(String),
 		RES_FIELD(launcher),XmRImmediate,(XtPointer)PREFIX"/bin/xmtoolbox"
 	},
@@ -151,6 +157,9 @@ XtResource xrdb_resources[]={
 	},
 	{ "lockTimeout","LockTimeout",XmRInt,sizeof(unsigned int),
 		RES_FIELD(lock_timeout),XmRImmediate,(XtPointer)600
+	},
+	{ "lockOnSuspend","LockOnSuspend",XmRBoolean,sizeof(Boolean),
+		RES_FIELD(lock_on_suspend),XmRImmediate,(XtPointer)False
 	},
 	{ "unlockScreenTimeout","UnlockScreenTimeout",XmRInt,sizeof(unsigned int),
 		RES_FIELD(unlock_scr_timeout),XmRImmediate,(XtPointer)8
@@ -166,16 +175,12 @@ XtResource xrdb_resources[]={
 	{ "showReboot","ShowReboot",XmRBoolean,
 		sizeof(unsigned int),RES_FIELD(show_reboot),
 		XmRImmediate,(XtPointer)True
+	},
+	{ "windowManager","WindowManager",XmRString,sizeof(String),
+		RES_FIELD(window_manager),XmRImmediate,(XtPointer)PREFIX"/bin/emwm"
 	}
 };
 #undef RES_FIELD
-
-#ifndef SHUTDOWN_CMD
-#define SHUTDOWN_CMD "/sbin/poweroff"
-#endif
-#ifndef REBOOT_CMD
-#define REBOOT_CMD "/sbin/reboot"
-#endif
 
 #define MSG_NOACCESS "Password Incorrect"
 #define APP_TITLE "XmSm"
@@ -187,6 +192,7 @@ XtResource xrdb_resources[]={
 char *bin_name = NULL;
 static Atom xa_mgr;
 static Atom xa_pid;
+static Atom xa_cmd;
 XtAppContext app_context;
 Widget wshell;
 static Widget *wcovers;
@@ -202,6 +208,9 @@ static Boolean covers_up = False;
 static Boolean unlock_up = False;
 static Boolean ptr_grabbed = False;
 static Boolean kbd_grabbed = False;
+static Boolean xrandr_present = False;
+static int xrandr_base_evt;
+static int xrandr_base_err;
 static XHostAddress *acl_hosts = NULL;
 static int num_acl_hosts;
 static Bool acl_state;
@@ -250,9 +259,18 @@ int main(int argc, char **argv)
 
 	xa_mgr = XInternAtom(XtDisplay(wshell),XMSM_ATOM_NAME,False);
 	xa_pid = XInternAtom(XtDisplay(wshell),XMSM_PID_ATOM_NAME,False);
+	xa_cmd = XInternAtom(XtDisplay(wshell),XMSM_CMD_ATOM_NAME,False);	
 	
 	/* init_session requires an X window */
 	XtRealizeWidget(wshell);
+	
+	/* Initialize Xrandr and set up for screen change notifications */
+	if(XRRQueryExtension(XtDisplay(wshell),
+		&xrandr_base_evt, &xrandr_base_err)){
+		xrandr_present = True;
+		XRRSelectInput(XtDisplay(wshell),
+			XtWindow(wshell), RRScreenChangeNotifyMask);
+	}
 
 	init_session();
 	set_root_background();
@@ -265,7 +283,7 @@ int main(int argc, char **argv)
 
 	xt_sigusr1 = XtAppAddSignal(app_context,xt_sigusr1_handler,NULL);
 	xt_sigusr2 = XtAppAddSignal(app_context,xt_sigusr2_handler,NULL);
-
+	
 	rv = launch_process(app_res.window_manager);
 	if(rv){
 		log_msg("Failed to exec the window manager (%s): %s\n",
@@ -309,11 +327,55 @@ int main(int argc, char **argv)
 				if(lock_timer) XtRemoveTimeOut(lock_timer);
 				lock_timer = None;
 			}
+		} else if(xrandr_present && evt.type ==
+			(xrandr_base_evt + RRScreenChangeNotify)) {
+			XRRUpdateConfiguration(&evt);
+			reconfigure_widgets((XRRScreenChangeNotifyEvent*)&evt);
 		}
 		XtDispatchEvent(&evt);
 	}
 
 	return 0;
+}
+
+/*
+ * Called on Xrandr screen change notification
+ * Adjusts cover dimensions and the 'unlock' box position
+ */
+static void reconfigure_widgets(XRRScreenChangeNotifyEvent *evt)
+{
+	Arg args[4];
+	unsigned int n = 0;
+	int scrn;
+	Widget w;
+	Dimension width, height;
+	Dimension swidth, sheight;
+	Position xoff, yoff;
+
+	scrn = XRRRootToScreen(evt->display, evt->root);
+
+	XtSetArg(args[n], XmNwidth, evt->width); n++;
+	XtSetArg(args[n], XmNheight, evt->height); n++;
+	XtSetValues(wcovers[scrn], args, n);
+
+	w = XtNameToWidget(wcovers[scrn],"*coverBackdrop");
+	assert(w);
+	XtSetValues(w, args, n);
+
+	get_screen_size(&swidth,&sheight,&xoff,&yoff);
+
+	w = XtNameToWidget(w,"*unlock");
+	assert(w);
+	n = 0;
+
+	XtSetArg(args[n], XmNwidth, &width); n++;
+	XtSetArg(args[n], XmNheight, &height); n++;
+	XtGetValues(w, args, n);
+
+	n = 0;
+	XtSetArg(args[n], XmNx, (xoff + (swidth - width) / 2)); n++;
+	XtSetArg(args[n], XmNy, (yoff + (sheight - height) / 2)); n++;
+	XtSetValues(w, args, n);
 }
 
 /*
@@ -346,6 +408,7 @@ static void lock_screen(void)
 	if(!can_auth){
 		XBell(XtDisplay(wshell), 100);
 		log_msg("Cannot authenticate. Screen locking disabled!\n");
+		error_dialog();
 		app_res.enable_locking = False;
 		return;
 	}
@@ -429,6 +492,7 @@ static void show_covers(Boolean show)
 		for(i=0; i<ncovers; i++) XtUnmapWidget(wcovers[i]);	
 		covers_up = False;
 	}
+	XFlush(XtDisplay(wshell));
 }
 
 /*
@@ -442,7 +506,6 @@ static void show_unlock_widget(void)
 	XmProcessTraversal(wunlock,XmTRAVERSE_CURRENT);
 	reset_unlock_timer();
 	XFlush(XtDisplay(wshell));
-
 }
 
 /*
@@ -574,6 +637,7 @@ static void create_locking_widgets(void)
 	XtAddEventHandler(wcovers[0],VisibilityChangeMask,False,covers_up_cb,NULL);
 
 	wtmp = XtNameToWidget(wcovers[0],"*coverBackdrop");
+	assert(wtmp);
 	
 	wunlock = XmVaCreateManagedFrame(wtmp,
 		"unlock",XmNshadowThickness,2,XmNshadowType,XmSHADOW_OUT,
@@ -703,7 +767,6 @@ static int local_x_err_handler(Display *dpy, XErrorEvent *evt)
 	if(evt->error_code == BadWindow) return 0;
 	return def_x_err_handler(dpy,evt);
 }
-
 
 /*
  * Tries to quthenticate using the entered password
@@ -938,7 +1001,6 @@ static void process_sessionetc(void)
 	char *home;
 	char fname[]=".sessionetc";
 	char *path;
-	char *cmd;
 	pid_t pid;
 	volatile int errval = 0;
 			
@@ -1081,20 +1143,92 @@ static void set_numlock_state(void)
 }
 
 /*
+ * Displays a single instance error notification dialog.
+ */
+static void error_dialog(void)
+{
+	static Widget wdlg = None;
+	XmString xm_message, xm_title, xm_dismiss;
+	Arg args[6];
+	unsigned int n = 0;
+
+	if(wdlg != None) {
+		#ifdef PERSISTENT_ERROR_DLG
+		if(!XtIsManaged(wdlg)) XtManageChild(wdlg);
+		#endif
+		return;
+	}
+	
+	xm_message = XmStringCreateLocalized(
+		"The session manager has encountered an error,\n"
+		"most likely due to improper configuration.\n"
+		"See ~/.xmsession.log for details.");
+	xm_title = XmStringCreateLocalized("XmSm");
+	xm_dismiss = XmStringCreateLocalized("Dismiss");
+
+	n=0;
+	XtSetArg(args[n], XmNdialogTitle, xm_title); n++;
+	XtSetArg(args[n], XmNdefaultButtonType, XmDIALOG_OK_BUTTON); n++;
+	XtSetArg(args[n], XmNmessageString, xm_message); n++;
+	XtSetArg(args[n], XmNokLabelString, xm_dismiss); n++;
+
+	wdlg = XmCreateErrorDialog(wshell,"messageDialog",args,n);
+
+	XmStringFree(xm_title);
+	XmStringFree(xm_message);
+	XmStringFree(xm_dismiss);
+
+	XtUnmanageChild( XmMessageBoxGetChild(wdlg,XmDIALOG_CANCEL_BUTTON));
+	XtUnmanageChild(XmMessageBoxGetChild(wdlg, XmDIALOG_HELP_BUTTON));
+
+	XtManageChild(wdlg);
+}
+
+/*
+ * Run a system command
+ */
+static Boolean exec_sys_cmd(const char *command)
+{
+	int rv;
+	
+	#ifndef UNPRIVILEGED_SHUTDOWN
+	if(set_privileges(True)){
+		rv = launch_process(command);
+		set_privileges(False);
+		if(rv){
+			XBell(XtDisplay(wshell), 100);
+			log_msg("Cannot exec %s: %s\n",command,strerror(rv));
+			return False;
+		}
+	}else{
+		XBell(XtDisplay(wshell), 100);
+		log_msg("Cannot exec %s with elevated privileges.\n",command);
+		return False;
+	}
+	#else /* UNPRIVILEGED_SHUTDOWN */
+	rv = launch_process(command);
+	if(rv){
+		XBell(XtDisplay(wshell), 100);
+		log_msg("Cannot exec %s: %s\n",command,strerror(rv));
+		return False;
+	}
+	#endif /* UNPRIVILEGED_SHUTDOWN */
+	return True;
+}
+
+/*
  * Displays a modal dialog asking the user to confirm leaving the session.
  */
-static void xt_sigusr2_handler(XtPointer ptr, XtSignalId *id)
+static void exit_session_dialog(void)
 {
 	static Widget wdlgshell = None;
 	static Widget wdialog;
-	static Widget wlogout;
 	static Widget wshutdown;
 	static Widget wreboot;
 	static Widget wcancel;
 	static Widget wok;
 	Widget wresult = None;
 	char *command = NULL;
-	int rv;
 
 	if(!wdlgshell) {
 		Widget wlabel;
@@ -1112,6 +1246,7 @@ static void xt_sigusr2_handler(XtPointer ptr, XtSignalId *id)
 
 		wdlgshell = XtVaCreatePopupShell("confirmExitDialog",
 			xmDialogShellWidgetClass,wshell,XmNallowShellResize,True,
+			XmNmwmDecorations, MWM_DECOR_TITLE|MWM_DECOR_BORDER,
 			XmNmwmFunctions,0,XmNuseAsyncGeometry,True,NULL);
 		
 		string = XmStringCreateLocalized("Leaving Session");
@@ -1140,7 +1275,7 @@ static void xt_sigusr2_handler(XtPointer ptr, XtSignalId *id)
 			XmNmarginHeight,1,XmNradioAlwaysOne,True,NULL);
 	
 		string = XmStringCreateLocalized("Log out");
-		wlogout = XmVaCreateManagedToggleButtonGadget(wrc,"logOut",
+		XmVaCreateManagedToggleButtonGadget(wrc,"logOut",
 			XmNlabelString,string,XmNindicatorType,XmONE_OF_MANY,
 			XmNset,True,NULL);
 		XmStringFree(string);
@@ -1180,8 +1315,8 @@ static void xt_sigusr2_handler(XtPointer ptr, XtSignalId *id)
 			XmNbottomAttachment,XmATTACH_FORM,NULL);
 		XmStringFree(string);
 		
-		XtVaSetValues(wdialog,XmNinitialFocus,wcancel,
-			XmNdefaultButton,wcancel,NULL);
+		XtVaSetValues(wdialog, XmNinitialFocus, wok, 
+			XmNdefaultButton, wok, NULL);
 		
 		XtRealizeWidget(wdlgshell);
 		
@@ -1203,29 +1338,9 @@ static void xt_sigusr2_handler(XtPointer ptr, XtSignalId *id)
 		command = REBOOT_CMD;
 	}
 
-	if(command){
-		#ifndef UNPRIVILEGED_SHUTDOWN
-		if(set_privileges(True)){
-			rv = launch_process(command);
-			set_privileges(False);
-			if(rv){
-				XBell(XtDisplay(wshell), 100);
-				log_msg("Cannot exec %s: %s\n",command,strerror(rv));
-				return;
-			}
-		}else{
-			XBell(XtDisplay(wshell), 100);
-			log_msg("Cannot exec %s with elevated privileges.\n",command);
-			return;
-		}
-		#else
-		rv = launch_process(command);
-		if(rv){
-			XBell(XtDisplay(wshell), 100);
-			log_msg("Cannot exec %s: %s\n",command,strerror(rv));
-			return;
-		}
-		#endif /* UNPRIVILEGED_SHUTDOWN */
+	if(command && !exec_sys_cmd(command)) {
+		error_dialog();
+		return;
 	}
 
 	XDeleteProperty(XtDisplay(wshell),
@@ -1243,11 +1358,52 @@ static void exit_dialog_cb(Widget w,
 
 static void xt_sigusr1_handler(XtPointer ptr, XtSignalId *id)
 {
-	if(app_res.enable_locking){
+	if(app_res.enable_locking) {
 		lock_screen();
 		if(app_res.blank_on_lock)
-			XtAppAddTimeOut(app_context,1000,blank_delay_timeout_cb,NULL);
+			XForceScreenSaver(XtDisplay(wshell),ScreenSaverActive);
+	} else {
+		log_msg("Can't lock. Locking is disabled\n");
 	}
+}
+
+static void xt_sigusr2_handler(XtPointer ptr, XtSignalId *id)
+{
+	XTextProperty prop;
+	
+	XGetTextProperty(XtDisplay(wshell), XtWindow(wshell), &prop, xa_cmd);
+	
+	if(prop.encoding != XA_STRING || prop.value == NULL) return;
+	
+	#ifdef DEBUG_CMD
+	log_msg("Received \"%s\" command\n", (char*)prop.value);
+	#endif
+	
+	if(!strcmp((char*)prop.value, XMSM_LOGOUT_CMD)) {
+		exit_session_dialog();
+	} else if(!strcmp((char*)prop.value, XMSM_LOCK_CMD)) {
+		if(app_res.enable_locking){
+			lock_screen();
+			if(app_res.blank_on_lock)
+				XtAppAddTimeOut(app_context,1000,blank_delay_timeout_cb,NULL);
+		} else {
+			XBell(XtDisplay(wshell), 100);
+			log_msg("Can't lock. Locking is disabled\n");
+			error_dialog();
+		}
+	} else if(!strcmp((char*)prop.value, XMSM_SUSPEND_CMD)) {
+		if(app_res.lock_on_suspend) {
+			if(app_res.enable_locking)
+				lock_screen();
+			else
+				log_msg("Can't lock. Locking is disabled\n");
+		}
+
+		if(!exec_sys_cmd(SUSPEND_CMD)) error_dialog();
+	}
+	
+	XtFree((char*)prop.value);
+	XDeleteProperty(XtDisplay(wshell), XtWindow(wshell), xa_cmd);
 }
 
 static void blank_delay_timeout_cb(XtPointer ptr, XtIntervalId *iid)
@@ -1259,19 +1415,18 @@ static void blank_delay_timeout_cb(XtPointer ptr, XtIntervalId *iid)
  * Low level signal handlers.
  * These just turn async signals into Xt callbacks.
  */
-static void sigusr2_handler(int sig)
-{
-	XtNoticeSignal(xt_sigusr2);
-}
-
 static void sigusr1_handler(int sig)
 {
 	XtNoticeSignal(xt_sigusr1);
 }
 
+static void sigusr2_handler(int sig)
+{
+	XtNoticeSignal(xt_sigusr2);
+}
+
 static void sigchld_handler(int sig)
 {
 	int status;
-	pid_t pid;
-	if(sig == SIGCHLD) pid=wait(&status);
+	if(sig == SIGCHLD) wait(&status);
 }

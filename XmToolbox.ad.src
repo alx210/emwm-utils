@@ -1,19 +1,14 @@
 ! XmToolbox app-defaults
 
-XmToolbox.x: 32
-XmToolbox.y: 32
+XmToolbox.x: 8
+XmToolbox.y: 28
 
 ! *title: Toolbox
 ! *hotkey: Super_L
 
 *dateTimeDisplay: True
 *dateTimeFormat: %D %l:%M %p
-
-*showSuspend: False
-*lockOnSuspend: False
-
-! *suspendCommand: /usr/sbin/zzz
-! *suspendCommand: sudo /usr/sbin/pm-suspend
+*showSuspend: True
 
 ! *XmPushButtonGadget.renderTable: menu
 ! *renderTable.menu.fontType: FONT_IS_XFT

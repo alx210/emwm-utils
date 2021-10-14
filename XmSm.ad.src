@@ -8,6 +8,7 @@
 
 *blankTimeout: 400
 *lockTimeout: 600
+*lockOnSuspend: False
 *unlockScreenTimeout: 16
 
 *numLockState: KEEP

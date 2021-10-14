@@ -21,12 +21,14 @@
  */
 
 /*
- * Session manager IPC globals
+ * System command paths
  */
 
-#define XMSM_ATOM_NAME "_XM_SESSION_MANAGER"
-#define XMSM_PID_ATOM_NAME "_XM_SESSION_MANAGER_PID"
-#define XMSM_CMD_ATOM_NAME "_XM_SESSION_MANAGER_CMD"
-#define XMSM_LOGOUT_CMD "LOGOUT"
-#define XMSM_LOCK_CMD "LOCK"
-#define XMSM_SUSPEND_CMD "SUSPEND"
+#define SHUTDOWN_CMD	"/sbin/poweroff"
+#define REBOOT_CMD		"/sbin/reboot"
+
+#ifdef __linux__
+#define SUSPEND_CMD		"/usr/sbin/pm-suspend"
+#else
+#define SUSPEND_CMD		"/usr/sbin/zzz"
+#endif /* _linux_ */
