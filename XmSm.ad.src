@@ -13,22 +13,22 @@
 
 *numLockState: KEEP
 
-*workspaceBackgroundColor: #4C719E
-*lockBackgroundColor: #4C719E
-! *workspaceBackgroundImage: /usr/share/pixmaps/workspace.xpm
-! *lockBackgroundImage: /usr/share/pixmaps/lock.xpm
+*workspaceBackgroundColor: #516286
+*lockBackgroundColor: #516286
+! *workspaceBackgroundImage: 25_foreground
+! *lockBackgroundImage: 50_foreground
 
 *showShutdown: True
 *showReboot: True
 *primaryXineramaScreen: 0
 
-! *password.renderTable: variable
-! *renderTable.variable.fontType: FONT_IS_XFT
-! *renderTable.variable.fontName: Liberation Sans
-! *renderTable.variable*fontSize: 14
+*password.renderTable: variable
+*renderTable.variable.fontType: FONT_IS_XFT
+*renderTable.variable.fontName: Liberation Sans
+*renderTable.variable*fontSize: 14
 
-! *lockedBy.renderTable: serif
-! *renderTable.serif.fontType: FONT_IS_XFT
-! *renderTable.serif.fontName: Liberation Serif
-! *renderTable.serif.fontSize: 20
-! *renderTable.serif.fontStyle: Italic
+*lockedBy.renderTable: serif
+*renderTable.serif.fontType: FONT_IS_XFT
+*renderTable.serif.fontName: Liberation Serif
+*renderTable.serif.fontSize: 20
+*renderTable.serif.fontStyle: Italic

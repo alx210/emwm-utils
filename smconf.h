@@ -24,11 +24,22 @@
  * System command paths
  */
 
-#define SHUTDOWN_CMD	"/sbin/poweroff"
-#define REBOOT_CMD		"/sbin/reboot"
-
+#ifndef SHUTDOWN_CMD
 #ifdef __linux__
-#define SUSPEND_CMD		"/usr/sbin/pm-suspend"
+#define SHUTDOWN_CMD    "/sbin/poweroff"
 #else
-#define SUSPEND_CMD		"/usr/sbin/zzz"
+#define SHUTDOWN_CMD    "/sbin/shutdown -p now"
+#endif
+#endif /* SHUTDOWN_CMD */
+
+#ifndef REBOOT_CMD
+#define REBOOT_CMD      "/sbin/reboot"
+#endif
+
+#ifndef SUSPEND_CMD
+#ifdef __linux__
+#define SUSPEND_CMD     "/usr/sbin/pm-suspend"
+#else /* BSD */
+#define SUSPEND_CMD     "/usr/sbin/zzz"
 #endif /* _linux_ */
+#endif /* SUSPEND_CMD */

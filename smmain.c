@@ -56,7 +56,7 @@
 #include <X11/Xatom.h>
 #include <errno.h>
 #include <assert.h>
-#ifdef __linux__
+#if defined(__linux__) || defined(__svr4__)
 #include <crypt.h>
 #include <shadow.h>
 #endif
@@ -68,7 +68,6 @@ static Boolean set_privileges(Boolean);
 static void init_session(void);
 static void sigchld_handler(int);
 static void sigusr1_handler(int);
-static void sigusr2_handler(int);
 static void create_locking_widgets(void);
 static void get_screen_size(Dimension*,Dimension*,Position*,Position*);
 static void lock_screen(void);
@@ -91,7 +90,7 @@ static void set_root_background(void);
 static void set_numlock_state(void);
 static int local_x_err_handler(Display*,XErrorEvent*);
 static void xt_sigusr1_handler(XtPointer,XtSignalId*);
-static void xt_sigusr2_handler(XtPointer,XtSignalId*);
+static void msg_property_handler(Widget, XtPointer, XEvent*, Boolean*);
 static void exit_session_dialog(void);
 static void error_dialog(void);
 static Boolean exec_sys_cmd(const char *command);
@@ -169,11 +168,11 @@ XtResource xrdb_resources[]={
 		XmRImmediate,(XtPointer)0
 	},
 	{ "showShutdown","ShowShutdown",XmRBoolean,
-		sizeof(unsigned int),RES_FIELD(show_shutdown),
+		sizeof(Boolean),RES_FIELD(show_shutdown),
 		XmRImmediate,(XtPointer)True
 	},
 	{ "showReboot","ShowReboot",XmRBoolean,
-		sizeof(unsigned int),RES_FIELD(show_reboot),
+		sizeof(Boolean),RES_FIELD(show_reboot),
 		XmRImmediate,(XtPointer)True
 	},
 	{ "windowManager","WindowManager",XmRString,sizeof(String),
@@ -202,7 +201,6 @@ static Widget wmessage;
 static XtIntervalId unlock_widget_timer=None;
 static XtIntervalId lock_timer=None;
 static XtSignalId xt_sigusr1;
-static XtSignalId xt_sigusr2;
 static Boolean scr_locked = False;
 static Boolean covers_up = False;
 static Boolean unlock_up = False;
@@ -240,7 +238,6 @@ int main(int argc, char **argv)
 
 	signal(SIGCHLD,sigchld_handler);
 	signal(SIGUSR1,sigusr1_handler);
-	signal(SIGUSR2,sigusr2_handler);
 
 	XtSetLanguageProc(NULL,NULL,NULL);
 	XtToolkitInitialize();
@@ -281,9 +278,6 @@ int main(int argc, char **argv)
 		create_locking_widgets();
 	}
 
-	xt_sigusr1 = XtAppAddSignal(app_context,xt_sigusr1_handler,NULL);
-	xt_sigusr2 = XtAppAddSignal(app_context,xt_sigusr2_handler,NULL);
-	
 	rv = launch_process(app_res.window_manager);
 	if(rv){
 		log_msg("Failed to exec the window manager (%s): %s\n",
@@ -300,6 +294,10 @@ int main(int argc, char **argv)
 		}
 	}
 	process_sessionetc();
+
+	xt_sigusr1 = XtAppAddSignal(app_context,xt_sigusr1_handler,NULL);
+	XtAddEventHandler(wshell, PropertyChangeMask, False,
+		msg_property_handler, NULL);
 
 	for(;;) {
 		XEvent evt;
@@ -394,13 +392,20 @@ static void lock_screen(void)
 
 		passwd = getpwnam(login);
 		if(passwd && passwd->pw_passwd[0] != '*') can_auth = True;
+		
+		#ifdef __OpenBSD__
+		if(passwd && passwd->pw_passwd[0] == '*'){
+			passwd = getpwnam_shadow(login);
+			if(passwd) can_auth = True;
+		}
+		#endif /* __OpenBSD__ */
 
-		#ifdef __linux__
+		#if defined(__linux__) || defined(__svr4__)
 		if(passwd && passwd->pw_passwd[0] == 'x'){
 			struct spwd *spwd = getspnam(login);
 			if(spwd) can_auth = True;	
 		}
-		#endif /* __linux __ */
+		#endif /* __linux__ / __svr4__*/
 
 		set_privileges(False);
 	}
@@ -742,7 +747,8 @@ void init_session(void)
 			
 		if(ret_type == XA_INTEGER){
 			pid = *((pid_t*)prop_data);
-			log_msg("%s is already running as PID %u\n",bin_name,pid);
+			log_msg("%s is already running as PID %lu\n",
+				bin_name, (unsigned long)pid);
 			XFree(prop_data);
 			exit(EXIT_SUCCESS);
 		}
@@ -787,13 +793,20 @@ static void passwd_enter_cb(Widget w,
 	passwd = getpwnam(login);
 	upw = passwd->pw_passwd;
 
-	#ifdef __linux__
+	#ifdef __OpenBSD__
+	if(passwd && passwd->pw_passwd[0] == '*'){
+		passwd = getpwnam_shadow(login);
+		if(passwd) upw = passwd->pw_passwd;
+	}
+	#endif /* __OpenBSD__ */
+
+	#if defined(__linux__) || defined(__svr4__)
 	if(!passwd || passwd->pw_passwd[0] == 'x'){
 		struct spwd *spwd;
 		spwd = getspnam(login);
 		if(spwd) upw = spwd->sp_pwdp;
 	}
-	#endif /* __linux__ */
+	#endif /* __linux__ / __svr4__ */
 
 	set_privileges(False);
 	
@@ -916,17 +929,13 @@ static Boolean set_privileges(Boolean elevate)
 	}
 	
 	if(!can_elevate) return False;
-	
+
 	if(elevate){
-		assert(geteuid() != orig_uid);
-		
 		res = seteuid(orig_uid);
 		res |= setegid(orig_gid);
 	}else{
 		gid_t newgid = getgid();
 
-		assert(geteuid() == orig_uid);
-		
 		res = setegid(newgid);
 		res |= seteuid(getuid());
 	}
@@ -972,24 +981,53 @@ static int launch_process(const char *path)
 {
 	pid_t pid;
 	volatile int errval = 0;
+	char *p = (char*)path;
+	char *str = NULL;
+	size_t argc = 1;
+	char **argv;
+	
+	while((p = strchr(p, ' '))) {
+		while(*p && *p == ' ') p++;
+		argc++;
+	}
 
-	pid=vfork();
+	argv = calloc(argc + 1, sizeof(char*));
+	if(!argv) return errno;
+	
+	if(argc > 1) {
+		size_t i = 0;
+		char *str = strdup(path);
+		if(!str) {
+			free(argv);
+			return ENOMEM;
+		}
+		p = strtok(str, " ");
+		argv[i++] = p;
+		while((p = strtok(NULL, " "))) argv[i++] = p;
+	} else {
+		argv[0] = (char*)path;
+	}
+	argv[argc] = NULL;
+
+	pid = vfork();
 	if(pid == 0){
-		char *argv[] = {(char*)path,NULL};
 		pid_t fpid = getpid();
 		
-		#ifdef __linux__
+		#if defined(__linux__) || defined(__svr4__)
 		setpgid(fpid,fpid);
 		#else
 		setpgrp(fpid,fpid);
-		#endif
+		#endif /* __linux__ || __svr4__ */
 		
-		if(execv(path,argv) == (-1))
-			errval=errno;
+		if(execv(argv[0], argv) == (-1)) errval = errno;
 		_exit(0);
 	}else if(pid == -1){
 		errval=errno;
 	}
+	
+	free(argv);
+	if(str) free(str);
+	
 	return errval;
 }
 
@@ -1027,11 +1065,11 @@ static void process_sessionetc(void)
 		char *argv[] = {"sh", path, NULL};
 		pid_t fpid = getpid();
 		
-		#ifdef __linux__
+		#if defined(__linux__) || defined(__svr4__)
 		setpgid(fpid,fpid);
 		#else
 		setpgrp(fpid,fpid);
-		#endif
+		#endif /* __linux__ || __svr4__ */
 				
 		if(execvp("sh",argv) == (-1)) errval = errno;
 		_exit(0);
@@ -1349,36 +1387,28 @@ static void exit_session_dialog(void)
 	exit(0);
 }
 
-/* Button press handler for xt_sigterm_handler confirmation dialog */
-static void exit_dialog_cb(Widget w,
-	XtPointer client_data, XtPointer call_data)
+/*
+ * IPC command property notification handler
+ */
+static void msg_property_handler(Widget w,
+	XtPointer ptr, XEvent *evt, Boolean *cont)
 {
-	*((Widget*)client_data) = w;
-}
-
-static void xt_sigusr1_handler(XtPointer ptr, XtSignalId *id)
-{
-	if(app_res.enable_locking) {
-		lock_screen();
-		if(app_res.blank_on_lock)
-			XForceScreenSaver(XtDisplay(wshell),ScreenSaverActive);
-	} else {
-		log_msg("Can't lock. Locking is disabled\n");
-	}
-}
-
-static void xt_sigusr2_handler(XtPointer ptr, XtSignalId *id)
-{
+	XPropertyEvent *pev = (XPropertyEvent*)evt;
 	XTextProperty prop;
-	
+
+	if(pev->state != PropertyNewValue || pev->atom != xa_cmd) return;
+
 	XGetTextProperty(XtDisplay(wshell), XtWindow(wshell), &prop, xa_cmd);
-	
-	if(prop.encoding != XA_STRING || prop.value == NULL) return;
-	
+
+	if(prop.encoding != XA_STRING || prop.value == NULL) {
+		log_msg("Invalid command received\n");
+		return;
+	}
+
 	#ifdef DEBUG_CMD
 	log_msg("Received \"%s\" command\n", (char*)prop.value);
 	#endif
-	
+
 	if(!strcmp((char*)prop.value, XMSM_LOGOUT_CMD)) {
 		exit_session_dialog();
 	} else if(!strcmp((char*)prop.value, XMSM_LOCK_CMD)) {
@@ -1403,7 +1433,25 @@ static void xt_sigusr2_handler(XtPointer ptr, XtSignalId *id)
 	}
 	
 	XtFree((char*)prop.value);
-	XDeleteProperty(XtDisplay(wshell), XtWindow(wshell), xa_cmd);
+	XFlush(XtDisplay(wshell));
+}
+
+/* Button press handler for xt_sigterm_handler confirmation dialog */
+static void exit_dialog_cb(Widget w,
+	XtPointer client_data, XtPointer call_data)
+{
+	*((Widget*)client_data) = w;
+}
+
+static void xt_sigusr1_handler(XtPointer ptr, XtSignalId *id)
+{
+	if(app_res.enable_locking) {
+		lock_screen();
+		if(app_res.blank_on_lock)
+			XForceScreenSaver(XtDisplay(wshell),ScreenSaverActive);
+	} else {
+		log_msg("Can't lock. Locking is disabled\n");
+	}
 }
 
 static void blank_delay_timeout_cb(XtPointer ptr, XtIntervalId *iid)
@@ -1418,15 +1466,16 @@ static void blank_delay_timeout_cb(XtPointer ptr, XtIntervalId *iid)
 static void sigusr1_handler(int sig)
 {
 	XtNoticeSignal(xt_sigusr1);
-}
-
-static void sigusr2_handler(int sig)
-{
-	XtNoticeSignal(xt_sigusr2);
+	#ifdef __svr4__
+	signal(SIGUSR1, sigusr1_handler);
+	#endif
 }
 
 static void sigchld_handler(int sig)
 {
 	int status;
-	if(sig == SIGCHLD) wait(&status);
+	wait(&status);
+	#ifdef __svr4__
+	signal(SIGCHLD, sigchld_handler);
+	#endif
 }

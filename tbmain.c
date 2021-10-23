@@ -130,8 +130,6 @@ String fallback_res[]={
 #define APP_NAME "xmtoolbox"
 #define RC_NAME	"toolboxrc"
 
-#define RC_UPDATE_REQ_TIME	1000
-
 #ifndef NO_SESSIONMGR
 Atom xa_xmsm_mgr=None;
 Atom xa_xmsm_pid=None;
@@ -629,6 +627,10 @@ static void create_utility_widgets(Widget wparent)
  * Returns a malloc()ed full path to the RC file on success,
  * or NULL otherwise.
  */
+#ifndef RCDIR
+#define RCDIR "/usr/local/etc/X11"
+#endif
+
 static char* find_rc_file(void)
 {
 	char *home=NULL;
@@ -636,10 +638,10 @@ static char* find_rc_file(void)
 	char *path;
 	int i;
 	char *sys_paths[32]={
-		"/etc/X11/",
-		"/usr/local/etc/X11/",
-		"/usr/lib/X11/",
-		"/usr/local/lib/X11/",
+		RCDIR,
+		"/etc/X11",
+		"/usr/lib/X11",
+		"/usr/local/lib/X11",
 		NULL
 	};
 	
@@ -1009,17 +1011,13 @@ static Boolean send_xmsm_cmd(const char *command)
 		XGetWindowProperty(dpy,shell,xa_xmsm_pid,0,sizeof(Window),
 			False,XA_INTEGER,&ret_type,&ret_format,
 			&ret_items,&left_items,&prop_data);
-			
+		if(ret_items) XFree(prop_data);
+
 		if(ret_type == XA_INTEGER){
-			pid_t pid = *((pid_t*)prop_data);
-			XFree(prop_data);
-			
 			XSetTextProperty(dpy, shell, &text_prop, xa_xmsm_cmd);
 			XSync(dpy, False);
 			
 			XSetErrorHandler(def_x_err_handler);
-			
-			kill(pid, SIGUSR2);
 			
 			return True;
 		}
@@ -1083,5 +1081,10 @@ static void sig_handler(int sig)
 	}else if(sig == SIGUSR1){
 		XtNoticeSignal(xt_sigusr1);
 	}
+
+	#if defined(__svr4__)
+	signal(SIGUSR1, sig_handler);
+	signal(SIGCHLD, sig_handler);	
+	#endif /* __svr4__ */
 }
 

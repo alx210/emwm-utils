@@ -1,17 +1,8 @@
 UTILITIES FOR EMWM
 ==================
-
-XMSM
-----------
 xmsm is simple session manager that provides session configuration and screen
 locking and also launches the window manager and the toolbox.
 
-A startup shell script called xmsession is provided for convenience. It
-redirects program output to ~/.xmsession.log, execs ~/.Xprofile and merges
-user's X resource databases prior to launching xmsm.
-
-XMTOOLBOX
----------
 xmtoolbox is an application launcher/menu configured with a simple text file.
 It also communicates with the session manager to provide lock, log out, and
 shutdown commands.
@@ -20,20 +11,25 @@ BUILDING AND INSTALLING
 =======================
 X11 and Motif libraries and headers are required to build all utilities.
 
-Make sure to review the Makefile and adjust PREFIX, MANDIR and RESDIR variables
-to file system locations appropriate for your system.
+Several platform specific Makefiles are provided;
+run 'ls Makefile.*' to list them.
 
-Run make to build, then run 'make install' as root.
+Create a symlink named 'Makefile' pointing to a platform specific makefile.
+e.g: run 'ln -s Makefile.FreeBSD Makefile'.
+
+Run 'make' to build. When done run 'make install' as root.
 
 NOTES
----------
+=======================
+The session manager may be run from XDM by setting the DisplayManager*session
+X resource in xdm-config to xmsession, or by execing xmsm from ~/.Xprofile.
+Just make sure to test whether it works by running 'xinit xmsession' before
+doing any of the above. Note that 'xmsession' is just a shell script that sets
+up the environment for xmsm, and is not needed when this has been done already.
+-
+xmsm is installed suid root, this is required for screen locking and running
+sbin commands. Privileges are dropped at startup and are reacquired only when
+necessary.
+-
 System shutdown, reboot and suspend commands can be altered at compile time
-only. Edit constants in smconf.h if necessary.
-
-Xmtoolbox requires either ~/.toolboxrc or /etc/X11/toolboxrc to be present.
-There is a sample toolboxrc file in the source directory, which may be used as
-a starting point. More info in xmtoolbox(1).
-
-The session manager 'xmsm' is installed suid root, this is required for screen
-locking functionality, but root privileges are dropped at startup and are only
-reacquired for short periods of time when necessary.
+only. Edit constants in smconf.h, or override them in CFLAGS if necessary.
