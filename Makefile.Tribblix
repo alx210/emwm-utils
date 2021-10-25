@@ -17,7 +17,8 @@ include common.mf
 
 install:
 	install -m 775 -f $(PREFIX)/bin xmsession
-	install -m 4775 -f $(PREFIX)/bin xmsm
+	install -m 4775 -u 0 -f $(PREFIX)/bin xmsm
+	install -m 775 -f $(PREFIX)/bin xmtoolbox
 	install -m 664 -f $(MANDIR)/man1 xmsm.1
 	install -m 664 -f $(MANDIR)/man1 xmtoolbox.1
 	install -m 775 -d $(RCDIR)
