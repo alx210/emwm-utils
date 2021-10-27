@@ -1019,6 +1019,9 @@ static int launch_process(const char *path)
 		setpgrp(fpid,fpid);
 		#endif /* __linux__ || __svr4__ */
 		
+		setuid(geteuid());
+		setgid(getegid());
+
 		if(execv(argv[0], argv) == (-1)) errval = errno;
 		_exit(0);
 	}else if(pid == -1){
