@@ -32,3 +32,9 @@
 *renderTable.serif.fontName: Liberation Serif
 *renderTable.serif.fontSize: 20
 *renderTable.serif.fontStyle: Italic
+
+*renderTable: dialog
+*renderTable.dialog.fontType: FONT_IS_XFT
+*renderTable.dialog.fontName: Liberation Sans
+*renderTable.dialog.fontSize: 10
+*renderTable: dialog

@@ -25,3 +25,9 @@ XmToolbox.y: 28
 *renderTable.small.fontType: FONT_IS_XFT
 *renderTable.small.fontName: Liberation Sans
 *renderTable.small.fontSize: 9
+
+*renderTable: default
+*renderTable.default.fontType: FONT_IS_XFT
+*renderTable.default.fontName: Liberation Sans
+*renderTable.default.fontSize: 10
+*renderTable: default
