@@ -114,6 +114,7 @@ struct session_res {
 	Boolean show_shutdown;
 	Boolean show_reboot;
 	Boolean lock_on_suspend;
+	Boolean silent;
 } app_res;
 
 #ifndef PREFIX
@@ -174,6 +175,10 @@ XtResource xrdb_resources[]={
 	{ "showReboot","ShowReboot",XmRBoolean,
 		sizeof(Boolean),RES_FIELD(show_reboot),
 		XmRImmediate,(XtPointer)True
+	},
+	{ "silent","Silent",XmRBoolean,
+		sizeof(Boolean),RES_FIELD(silent),
+		XmRImmediate,(XtPointer)False
 	},
 	{ "windowManager","WindowManager",XmRString,sizeof(String),
 		RES_FIELD(window_manager),XmRImmediate,(XtPointer)PREFIX"/bin/emwm"
@@ -411,7 +416,7 @@ static void lock_screen(void)
 	}
 
 	if(!can_auth){
-		XBell(XtDisplay(wshell), 100);
+		if(!app_res.silent) XBell(XtDisplay(wshell), 100);
 		log_msg("Cannot authenticate. Screen locking disabled!\n");
 		error_dialog();
 		app_res.enable_locking = False;
@@ -819,7 +824,7 @@ static void passwd_enter_cb(Widget w,
 		unlock_screen();
 		set_unlock_message(NULL);
 	}else{
-		XBell(XtDisplay(w),100);
+		if(!app_res.silent) XBell(XtDisplay(w),100);
 		set_unlock_message(MSG_NOACCESS);
 	}
 
@@ -1237,19 +1242,19 @@ static Boolean exec_sys_cmd(const char *command)
 		rv = launch_process(command);
 		set_privileges(False);
 		if(rv){
-			XBell(XtDisplay(wshell), 100);
+			if(!app_res.silent) XBell(XtDisplay(wshell), 100);
 			log_msg("Cannot exec %s: %s\n",command,strerror(rv));
 			return False;
 		}
 	}else{
-		XBell(XtDisplay(wshell), 100);
+		if(!app_res.silent) XBell(XtDisplay(wshell), 100);
 		log_msg("Cannot exec %s with elevated privileges.\n",command);
 		return False;
 	}
 	#else /* UNPRIVILEGED_SHUTDOWN */
 	rv = launch_process(command);
 	if(rv){
-		XBell(XtDisplay(wshell), 100);
+		if(!app_res.silent) XBell(XtDisplay(wshell), 100);
 		log_msg("Cannot exec %s: %s\n",command,strerror(rv));
 		return False;
 	}
@@ -1420,7 +1425,7 @@ static void msg_property_handler(Widget w,
 			if(app_res.blank_on_lock)
 				XtAppAddTimeOut(app_context,1000,blank_delay_timeout_cb,NULL);
 		} else {
-			XBell(XtDisplay(wshell), 100);
+			if(!app_res.silent) XBell(XtDisplay(wshell), 100);
 			log_msg("Can't lock. Locking is disabled\n");
 			error_dialog();
 		}

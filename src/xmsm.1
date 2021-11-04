@@ -95,6 +95,9 @@ Show the Shutdown option in the exit options dialog. Default is \fBTrue\fP.
 \fBshowReboot\fP \fIBoolean\fP
 Show the Reboot option in the exit options dialog. Default is \fBTrue\fP.
 .TP
+\fBsilent\fP \fIBoolean\fP
+If set to True, xmsm wont give any audible feedback. Default is False.
+.TP
 \fBworkspaceBackgroundColor\fP \fIColor\fP
 Background color of the root window.
 .TP
@@ -122,11 +125,10 @@ of that color.
 .SH SIGNALS
 .PP
 xmsm responds to SIGUSR1 by engaging screen lock.
-SIGUSR2 is used by xmtoolbox to pass commands to xmsm.
 .SH CAVEATS
 The xmsm binary must be setuid root for screen locking to work, however
-it discards root privileges at startup and restores them only for short
-periods of runtime to fetch user's password.
+it discards root privileges at startup and restores them only during
+password check and when executing system commands.
 .PP
 XmSm does not implement the ICCCM session save/restore protocol.
 .PP
