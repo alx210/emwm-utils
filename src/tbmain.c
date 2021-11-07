@@ -892,7 +892,7 @@ static int exec_command(const char *cmd_spec)
 				/* literal " or ' */
 				memmove(p - 1, p, strlen(p) + 1);
 			}else{
-				/* parenthese, remove it ignoring blanks within */
+				/* quotation marks, remove them ignoring blanks within */
 				memmove(p, p + 1, strlen(p));
 				while(*p != '\"' && *p != '\''){
 					if(*p == '\0'){
