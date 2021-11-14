@@ -117,6 +117,10 @@ struct session_res {
 	Boolean silent;
 } app_res;
 
+#ifndef LOGFILE
+#define LOGFILE ".xmsession.log"
+#endif
+
 #ifndef PREFIX
 /* Used to construct full paths to mwm and xmtoolbox */
 #define PREFIX "/usr/local"
@@ -237,10 +241,12 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
-	if(chdir(home) == (-1)){
-		perror("chdir");
+	if(!chdir(home) && freopen(LOGFILE, "w", stdout)) {
+		dup2(fileno(stdout), fileno(stderr));
+	} else {	
+		perror("~/" LOGFILE);
 	}
-
+	
 	signal(SIGCHLD,sigchld_handler);
 	signal(SIGUSR1,sigusr1_handler);
 
@@ -628,8 +634,10 @@ static void create_locking_widgets(void)
 		XtSetArg(args[n],XmNcolormap,DefaultColormap(dpy,i)); n++;
 		XtSetArg(args[n],XmNscreen,XScreenOfDisplay(dpy,i)); n++;
 		/* can be set at creation time only, so... */
-		if(i == 0)
-			XtSetArg(args[n],XmNmwmInputMode,MWM_INPUT_SYSTEM_MODAL); n++;
+		if(i == 0) {
+			XtSetArg(args[n],XmNmwmInputMode,MWM_INPUT_SYSTEM_MODAL);
+			n++;
+		}
 				
 		wcovers[i] = XtCreatePopupShell("coverShell",
 			topLevelShellWidgetClass,wshell,args,n);
