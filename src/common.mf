@@ -14,10 +14,10 @@ executables = xmsm xmtoolbox xmsession
 all: $(executables) $(app_defaults) 
 
 xmtoolbox: $(toolbox_objs)
-	$(CC) -o $@ $(LIBDIRS) $(toolbox_objs) $(toolbox_libs)
+	$(CC) -o $@ $(LDFLAGS) $(LIBDIRS) $(toolbox_objs) $(toolbox_libs)
 
 xmsm: $(xmsm_objs)
-	$(CC) -o $@ $(LIBDIRS) $(xmsm_objs) $(xmsm_libs)
+	$(CC) -o $@ $(LDFLAGS) $(LIBDIRS) $(xmsm_objs) $(xmsm_libs)
 
 xmsession: xmsession.src
 	sed s%PREFIX%$(PREFIX)%g xmsession.src > $@
