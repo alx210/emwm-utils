@@ -883,8 +883,9 @@ static int exec_command(const char *cmd_spec)
 	/* split the command string into separate arguments */
 	while(!done){
 		if(!t){
-			while(isblank(*p)) p++;
-			t=p;
+			while(*p && isblank(*p)) p++;
+			if(*p == '\0') break;
+			t = p;
 		}
 		
 		if(*p == '\"' || *p == '\''){
