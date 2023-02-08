@@ -48,6 +48,7 @@
 #include <X11/cursorfont.h>
 #include <errno.h>
 #include "tbparse.h"
+#include "common.h"
 #include "smglobal.h"
 
 /* Forward declarations */
@@ -69,7 +70,8 @@ static void exec_cb(Widget,XtPointer,XtPointer);
 static void menu_command_cb(Widget,XtPointer,XtPointer);
 static void user_input_cb(Widget,XtPointer,XtPointer);
 static void message_dialog_cb(Widget,XtPointer,XtPointer);
-static void sig_handler(int);
+static void sigchld_handler(int);
+static void sigusr_handler(int);
 static void xt_sigusr1_handler(XtPointer,XtSignalId*);
 static void suspend_cb(Widget,XtPointer,XtPointer);
 #ifndef NO_SESSIONMGR
@@ -155,8 +157,9 @@ int main(int argc, char **argv)
 	Widget wframe;
 	char *home;
 	
-	signal(SIGUSR1,sig_handler);
-	signal(SIGCHLD,sig_handler);
+	rsignal(SIGUSR1, sigusr_handler);
+	rsignal(SIGUSR2, sigusr_handler);
+	rsignal(SIGCHLD, sigchld_handler);
 
 	if((home=getenv("HOME"))){
 		chdir(home);
@@ -1074,18 +1077,13 @@ static void logout_cb(Widget w, XtPointer client_data, XtPointer call_data)
 }
 #endif /* NO_SESSIONMGR */
 
-static void sig_handler(int sig)
+static void sigchld_handler(int sig)
 {
-	if(sig == SIGCHLD){
-		int status;
-		wait(&status);
-	}else if(sig == SIGUSR1){
-		XtNoticeSignal(xt_sigusr1);
-	}
-
-	#if defined(__svr4__)
-	signal(SIGUSR1, sig_handler);
-	signal(SIGCHLD, sig_handler);	
-	#endif /* __svr4__ */
+	int status;
+	waitpid(-1, &status, WNOHANG);
 }
 
+static void sigusr_handler(int sig)
+{
+	if(sig == SIGUSR1) XtNoticeSignal(xt_sigusr1);
+}

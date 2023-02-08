@@ -62,12 +62,13 @@
 #endif
 #include "smglobal.h"
 #include "smconf.h"
+#include "common.h"
 
 /* Local prototypes */
 static Boolean set_privileges(Boolean);
 static void init_session(void);
 static void sigchld_handler(int);
-static void sigusr1_handler(int);
+static void sigusr_handler(int);
 static void create_locking_widgets(void);
 static void get_screen_size(Dimension*,Dimension*,Position*,Position*);
 static void lock_screen(void);
@@ -230,8 +231,9 @@ int main(int argc, char **argv)
 
 	set_privileges(False);
 		
-	signal(SIGCHLD,sigchld_handler);
-	signal(SIGUSR1,sigusr1_handler);
+	rsignal(SIGCHLD, sigchld_handler);
+	rsignal(SIGUSR1, sigusr_handler);
+	rsignal(SIGUSR2, sigusr_handler);
 
 	XtSetLanguageProc(NULL,NULL,NULL);
 	XtToolkitInitialize();
@@ -1462,19 +1464,13 @@ static void blank_delay_timeout_cb(XtPointer ptr, XtIntervalId *iid)
  * Low level signal handlers.
  * These just turn async signals into Xt callbacks.
  */
-static void sigusr1_handler(int sig)
+static void sigusr_handler(int sig)
 {
-	XtNoticeSignal(xt_sigusr1);
-	#ifdef __svr4__
-	signal(SIGUSR1, sigusr1_handler);
-	#endif
+	if(sig == SIGUSR1) XtNoticeSignal(xt_sigusr1);
 }
 
 static void sigchld_handler(int sig)
 {
 	int status;
-	wait(&status);
-	#ifdef __svr4__
-	signal(SIGCHLD, sigchld_handler);
-	#endif
+	waitpid(-1, &status, WNOHANG);
 }
