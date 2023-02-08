@@ -8,6 +8,10 @@ XPROFILE="$HOME/.Xprofile"
 XRESOURCES="$HOME/.Xresources"
 XDEFAULTS="$HOME/.Xdefaults"
 
+if [ -f "$LOGFILE" ]; then
+	cp -f "$LOGFILE" "$LOGFILE".old
+fi
+
 exec > "$LOGFILE" 2>&1
 
 if [ -f "$XPROFILE" ]; then

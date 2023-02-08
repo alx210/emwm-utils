@@ -117,10 +117,6 @@ struct session_res {
 	Boolean silent;
 } app_res;
 
-#ifndef LOGFILE
-#define LOGFILE ".xmsession.log"
-#endif
-
 #ifndef PREFIX
 /* Used to construct full paths to mwm and xmtoolbox */
 #define PREFIX "/usr/local"
@@ -229,24 +225,11 @@ static int (*def_x_err_handler)(Display*,XErrorEvent*)=NULL;
 int main(int argc, char **argv)
 {
 	int rv;
-	char *home;
 	
 	bin_name = argv[0];
 
 	set_privileges(False);
 		
-	home=getenv("HOME");
-	if(!home){
-		log_msg("HOME is not set.\n");
-		return EXIT_FAILURE;
-	}
-
-	if(!chdir(home) && freopen(LOGFILE, "w", stdout)) {
-		dup2(fileno(stdout), fileno(stderr));
-	} else {	
-		perror("~/" LOGFILE);
-	}
-	
 	signal(SIGCHLD,sigchld_handler);
 	signal(SIGUSR1,sigusr1_handler);
 
