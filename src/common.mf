@@ -43,6 +43,17 @@ common_install:
 	install -m664 XmToolbox.ad $(APPLRESDIR)/XmToolbox
 	install -m664 toolboxrc $(RCDIR)/toolboxrc
 
+uninstall:
+	rm -f $(PREFIX)/bin/xmsm
+	rm -f $(PREFIX)/bin/xmsession
+	rm -f $(PREFIX)/bin/xmtoolbox
+	rm -f $(MANDIR)/man1/xmtoolbox.1
+	rm -f $(MANDIR)/man1/xmtoolbox.1
+	rm -f $(APPLRESDIR)/XmSm
+	rm -f $(APPLRESDIR)/XmToolbox
+	rm -f $(RCDIR)/toolboxrc
+	rmdir $(RCDIR)
+
 clean:
 	-rm $(toolbox_objs) $(xmsm_objs) $(executables) $(app_defaults)
 	-rm .depend
