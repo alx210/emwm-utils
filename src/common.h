@@ -27,4 +27,11 @@
 typedef void (*sigfunc_t)(int);
 sigfunc_t rsignal(int sig, sigfunc_t);
 
+/*
+ * Expands sh style environment variables found in 'in' and returns the
+ * expanded string in 'out', which is allocated from the heap and must be
+ * freed by the caller. Returns zero on success, errno otherwise.
+ */
+int expand_env_vars(const char *in, char **out);
+
 #endif /* COMMON_H */

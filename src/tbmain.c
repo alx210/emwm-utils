@@ -61,7 +61,7 @@ static void handle_root_event(XEvent*);
 void raise_and_focus(Widget w);
 static void time_update_cb(XtPointer,XtIntervalId*);
 static int exec_command(const char*);
-static void report_exec_error(const char*,int);
+static void report_exec_error(const char*,const char*,int);
 static void report_rcfile_error(const char*,const char*);
 static char* get_user_input(Widget,const char*);
 static Boolean message_dialog(Boolean,const char*);
@@ -876,10 +876,8 @@ static int exec_command(const char *cmd_spec)
 	unsigned int argc=0;
 	volatile int errval=0;
 	
-	
-	str=strdup(cmd_spec);
-	if(!str) return errno;
-	
+	str = strdup(cmd_spec);
+
 	p=str;
 	t=NULL;
 	
@@ -954,12 +952,12 @@ static int exec_command(const char *cmd_spec)
 }
 
 /*
- * Display a message dialog comtaining the failed command name and
+ * Display a message dialog containing the failed command name and
  * the system error string.
  */
-static void report_exec_error(const char *command, int errno_value)
+static void report_exec_error(const char *err_msg,
+	const char *command, int errno_value)
 {
-	char *err_msg="Error while executing command";
 	char *errno_str=strerror(errno_value);
 	char *buffer;
 
@@ -976,11 +974,20 @@ static void report_exec_error(const char *command, int errno_value)
 static void menu_command_cb(Widget w,
 	XtPointer client_data, XtPointer call_data)
 {
-	int err;
+	int errval;
+	char *cmd = (char*) client_data;
+	char *exp_cmd;
 	
-	if((err=exec_command(client_data)))
-		report_exec_error(client_data,err);
+	errval = expand_env_vars(cmd, &exp_cmd);
+	if(errval) {
+		report_exec_error("Failed to parse command string", cmd, errval);
+		return;
+	}
+
+	if((errval = exec_command(exp_cmd)))
+		report_exec_error("Error executing command", exp_cmd, errval);
 	
+	free(exp_cmd);
 }
 
 #ifndef NO_SESSIONMGR
@@ -1045,14 +1052,24 @@ static int local_x_err_handler(Display *dpy, XErrorEvent *evt)
 static void exec_cb(Widget w, XtPointer client_data, XtPointer call_data)
 {
 	char *command;
-	int err;
-	command=get_user_input(wshell,"Command to execute");
-	if(!command) return;
+	char *exp_cmd;
+	int errval;
 	
-	if((err=exec_command(command)))
-		report_exec_error(command,err);
+	command = get_user_input(wshell,"Command to execute");
+	if(!command) return;
+
+	errval = expand_env_vars(command, &exp_cmd);
+	if(errval) {
+		report_exec_error("Failed to parse command string", command, errval);
+		free(command);
+		return;
+	}
+
+	if((errval = exec_command(exp_cmd)))
+		report_exec_error("Error executing command", exp_cmd, errval);
 		
-	if(command) free(command);
+	free(command);
+	free(exp_cmd);
 }
 
 static void suspend_cb(Widget w, XtPointer client_data, XtPointer call_data)
