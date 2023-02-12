@@ -1,1 +1,28 @@
-Makefile.Tribblix
+# SunOS Makefile
+
+PREFIX = /usr
+MANDIR = /usr/share/man
+RCDIR = /usr/lib/X11
+APPLRESDIR = /usr/lib/X11/app-defaults
+
+CC = gcc
+CFLAGS = -O2 -Wall -DSHUTDOWN_CMD='"/usr/sbin/poweroff"' \
+	-DREBOOT_CMD='"/usr/sbin/reboot"' \
+	-DSUSPEND_CMD='"/usr/bin/sys-suspend -x"'
+
+include common.mf
+
+.c.o:
+	$(CC) $(CFLAGS) $(DEFINES) $(INCDIRS) -c -o $(^:.c=.o) $^
+
+install:
+	install -m 775 -f $(PREFIX)/bin xmsession
+	install -m 4775 -u 0 -f $(PREFIX)/bin xmsm
+	install -m 775 -f $(PREFIX)/bin xmtoolbox
+	install -m 664 -f $(MANDIR)/man1 xmsm.1
+	install -m 664 -f $(MANDIR)/man1 xmtoolbox.1
+	install -m 775 -d $(RCDIR)
+	install -m 664 -f $(RCDIR) toolboxrc
+	# If Tribblix packages Xft enabled Motif
+	# cp XmSm.ad XmSm && install -m 664 -f $(APPLRESDIR) XmSm
+	# cp XmToolbox.ad XmToolbox && install -m 664 -f $(APPLRESDIR) XmToolbox
