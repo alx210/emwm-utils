@@ -3,8 +3,9 @@
 
 &Programs
 {
-	&File Manager: mc
+	&File Manager: xfile
 	&NEdit: nedit
+	SEPARATOR
 	&GIMP: gimp
 	&Blender: blender
 }
@@ -12,7 +13,7 @@
 &Web \& Mail
 {
 	&Web-Browser: links -g
-	&E-Mail: mutt
+	&E-Mail: xterm -title "E-Mail" -geometry 96x40 -e mutt
 }
 
 &Utilities
@@ -36,4 +37,10 @@
 {
 	&XTerm: xterm
 	X&Term With Scrollbar: xterm -sb -rightbar
+}
+
+&Locations
+{
+	&Home: xfile $HOME
+	&Media: xfile /media/$LOGNAME
 }
