@@ -43,6 +43,7 @@
 #include <Xm/Frame.h>
 #include <Xm/LabelG.h>
 #include <Xm/SelectioB.h>
+#include <Xm/TextF.h>
 #include <Xm/MessageB.h>
 #include <Xm/MwmUtil.h>
 #include <X11/cursorfont.h>
@@ -744,13 +745,14 @@ static void xt_sigusr1_handler(XtPointer client_data, XtSignalId *id)
  */
 static char* get_user_input(Widget wshell, const char *prompt_str)
 {
-	static Widget w=None;
+	static Widget wdlg = None;
+	static Widget wtext = None;
 	XmString xm_prompt_str;
 	Arg args[5];
 	int n=0;
 	char *result_str=NULL;
 
-	if(w == None){
+	if(wdlg == None){
 		XmString xm_title;
 		XtCallbackRec callback[]={
 			{(XtCallbackProc)user_input_cb,(XtPointer)&result_str},
@@ -762,17 +764,28 @@ static char* get_user_input(Widget wshell, const char *prompt_str)
 		XtSetArg(args[n],XmNdialogTitle,xm_title); n++;
 		XtSetArg(args[n],XmNokCallback,callback); n++;
 		XtSetArg(args[n],XmNcancelCallback,callback); n++;
-		w=XmCreatePromptDialog(wshell,"promptDialog",args,n);
+		wdlg = XmCreatePromptDialog(wshell, "promptDialog", args, n);
 		XmStringFree(xm_title);
-		XtUnmanageChild(XmSelectionBoxGetChild(w,XmDIALOG_HELP_BUTTON));
+		wtext = XmSelectionBoxGetChild(wdlg, XmDIALOG_TEXT);
+		XtUnmanageChild(XmSelectionBoxGetChild(wdlg, XmDIALOG_HELP_BUTTON));
+	} else {
+		char *text;
+		size_t len;
+		
+		text = XmTextFieldGetString(wtext);
+		if( (len = strlen(text)) ) {
+			XmTextFieldSetSelection(wtext, 0, len,
+				XtLastTimestampProcessed(XtDisplay(wtext)));
+		}
+		XtFree(text);
 	}
 	xm_prompt_str=XmStringCreateLocalized((char*)prompt_str);
 	
-	n=0;	
-	XtSetArg(args[n],XmNselectionLabelString,xm_prompt_str); n++;
-	XtSetValues(w,args,n);
+	n = 0;	
+	XtSetArg(args[n], XmNselectionLabelString, xm_prompt_str); n++;
+	XtSetValues(wdlg, args, n);
 	XmStringFree(xm_prompt_str);
-	XtManageChild(w);
+	XtManageChild(wdlg);
 	
 	while(!result_str){
 		XtAppProcessEvent(app_context,XtIMAll);
