@@ -22,7 +22,7 @@
 .SH NAME
 xmtoolbox - application launcher
 .SH SYNOPSIS
-xmtoolbox [-rcfile <file> -hotkey [modifier ... key]]
+xmtoolbox [-rcfile <file>] [-hotkey [modifier[+\.\.\.]]+key]
 .SH DESCRIPTION
 XmToolbox displays a user defined, multi\-level menu of application groups
 and applications. It also interfaces with the xmsm(1) session manager to
@@ -95,10 +95,9 @@ Display date and time\. Default is \fITrue\fP\.
 Date and time format string\. See strftime(3). Defaults to "%D %l:%M %p"\.
 .TP
 \fBhotkey\fP [\fIModifier\fP \.\.\.] \fIKey\fP | None
-One or more modifiers followed by a key name defining the
-hotkey to raise and focus the toolbox window at any time, or \fINone\fP if no
-hotkey assignment is desired. Possible modifiers are:
-\fBControl, Alt, Shift\fP\. Defaults to None\.
+One or more modifiers followed by a key name (X KeySym names, separated by
+whitespace or +) defining the hotkey to raise and focus the toolbox window at
+any time, or \fINone\fP if no hotkey assignment is desired\. Defaults to None\.
 .TP
 \fBrcFile\fP \fIString\fP
 Full path to the configuration file\. See \fBCONFIGURATION\fP for details\.
