@@ -183,17 +183,18 @@ int main(int argc, char **argv)
 		char *login;
 		char host[256]="localhost";
 
-		login=getlogin();
-		gethostname(host,255);
-		
-		title=malloc(strlen(login)+strlen(host)+2);
-		if(!title){
-			perror("malloc");
-			return EXIT_FAILURE;
+		if( (login = get_login()) ) {
+			gethostname(host,255);
+
+			title=malloc(strlen(login)+strlen(host)+2);
+			if(!title){
+				perror("malloc");
+				return EXIT_FAILURE;
+			}
+			sprintf(title,"%s@%s",login,host);
+			XtVaSetValues(wshell,XmNtitle,title,NULL);
+			free(title);
 		}
-		sprintf(title,"%s@%s",login,host);
-		XtVaSetValues(wshell,XmNtitle,title,NULL);
-		free(title);
 	}
 
 	wframe=XmVaCreateManagedFrame(wshell,"mainFrame",

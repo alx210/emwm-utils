@@ -34,4 +34,6 @@ sigfunc_t rsignal(int sig, sigfunc_t);
  */
 int expand_env_vars(const char *in, char **out);
 
+char* get_login(void);
+
 #endif /* COMMON_H */

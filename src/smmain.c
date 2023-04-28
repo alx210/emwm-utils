@@ -382,7 +382,13 @@ static void lock_screen(void)
 	struct passwd *passwd;
 	
 	/* make sure we can authenticate before locking */
-	login = getlogin();
+	login = get_login();
+	if(!login) {
+		log_msg("Cannot retrieve login name\n");
+		error_dialog();
+		app_res.enable_locking = False;
+		return;
+	}
 	
 	if(set_privileges(True)) {
 
@@ -654,7 +660,8 @@ static void create_locking_widgets(void)
 	
 	wtmp = XmCreateLabelGadget(wrowcol,"lockedBy",NULL,0);
 
-	login=getlogin();
+	if(! (login = get_login()) )
+		login = "(unknown)";
 	gethostname(host,255);
 		
 	locked_by=malloc(strlen(login)+strlen(host)+2);
@@ -773,7 +780,7 @@ static int local_x_err_handler(Display *dpy, XErrorEvent *evt)
 }
 
 /*
- * Tries to quthenticate using the entered password
+ * Tries to authenticate using the entered password
  */
 static void passwd_enter_cb(Widget w,
 	XtPointer client_data, XtPointer call_data)
@@ -784,7 +791,7 @@ static void passwd_enter_cb(Widget w,
 	char *cpw = NULL;
 	char *upw = NULL;
 	
-	login = getlogin();
+	login = get_login();
 	
 	set_privileges(True);
 	

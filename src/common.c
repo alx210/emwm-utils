@@ -26,6 +26,8 @@
 #include <string.h>
 #include <signal.h>
 #include <errno.h>
+#include <unistd.h>
+#include <pwd.h>
 #include "common.h"
 
 /* Reliable signal handling (using POSIX sigaction) */
@@ -197,4 +199,16 @@ int expand_env_vars(const char *in, char **out)
 	free(parts);
 	free(src);
 	return res;
+}
+
+char* get_login(void)
+{
+	static char *login = NULL;
+	
+	if(!login) {
+		struct passwd *pwd;
+		pwd = getpwuid(getuid());
+		if(pwd) login = strdup(pwd->pw_name);
+	}
+	return login;
 }
