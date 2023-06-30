@@ -22,7 +22,7 @@
 .SH NAME
 xmtoolbox - application launcher
 .SH SYNOPSIS
-xmtoolbox [-rcfile <file>] [-hotkey [modifier[+\.\.\.]]+key]
+xmtoolbox [-rcfile <file>] [-horizontal] [-hotkey [modifier[+\.\.\.]]+key]
 .SH DESCRIPTION
 XmToolbox displays a user defined, multi\-level menu of application groups
 and applications. It also interfaces with the xmsm(1) session manager to
@@ -38,6 +38,10 @@ Specify toolbox window title. Default is user's login name and the host name.
 \fB\-hotkey\fP \fI[Modifier ...] Key\fP
 Hotkey to raise and focus the toolbox window\.
 See the resource description below\.
+.TP
+\fB\-horizontal\fP
+Specifies whether the top\-level menu should be laid out horizontally,
+rather than vertically.
 .SH CONFIGURATION
 .PP
 XmToolbox reads its menu configuration from text files. If not specified
@@ -98,6 +102,10 @@ Date and time format string\. See strftime(3). Defaults to "%D %l:%M %p"\.
 One or more modifiers followed by a key name (X KeySym names, separated by
 whitespace or +) defining the hotkey to raise and focus the toolbox window at
 any time, or \fINone\fP if no hotkey assignment is desired\. Defaults to None\.
+.TP
+\fBhorizontal\fP \fIBoolean\fP
+Specifies whether the top\-level menu should be laid out horizontally,
+rather than vertically. Default is False.
 .TP
 \fBrcFile\fP \fIString\fP
 Full path to the configuration file\. See \fBCONFIGURATION\fP for details\.

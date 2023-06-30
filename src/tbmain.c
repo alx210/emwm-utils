@@ -90,6 +90,7 @@ struct tb_resources {
 	char *hotkey;
 	unsigned int rcfile_check_time;
 	Boolean show_commands;
+	Boolean horizontal;
 } app_res;
 
 #define RES_FIELD(f) XtOffsetOf(struct tb_resources,f)
@@ -111,6 +112,9 @@ XtResource xrdb_resources[]={
 	},
 	{ "showSuspend","ShowSuspend",XmRBoolean,sizeof(Boolean),
 		RES_FIELD(show_suspend),XmRImmediate,(XtPointer)True
+	},
+	{ "horizontal","Horizontal",XmRBoolean,sizeof(Boolean),
+		RES_FIELD(horizontal),XmRImmediate,(XtPointer)False
 	}
 };
 #undef RES_FIELD
@@ -118,7 +122,9 @@ XtResource xrdb_resources[]={
 static XrmOptionDescRec xrdb_options[]={
 	{"-title","title",XrmoptionSepArg,(caddr_t)NULL},
 	{"-rcfile","rcFile",XrmoptionSepArg,(caddr_t)NULL},
-	{"-hotkey","hotkey",XrmoptionSepArg,(caddr_t)NULL}
+	{"-hotkey","hotkey",XrmoptionSepArg,(caddr_t)NULL},
+	{"-horizontal", "horizontal", XrmoptionNoArg, (caddr_t)"True"},
+	{"+horizontal", "horizontal", XrmoptionNoArg, (caddr_t)"False"}
 };
 
 String fallback_res[]={
@@ -196,9 +202,12 @@ int main(int argc, char **argv)
 	wframe=XmVaCreateManagedFrame(wshell,"mainFrame",
 		XmNshadowThickness,2,XmNshadowType,XmSHADOW_OUT,NULL);
 	
-	wmain=XmVaCreateManagedRowColumn(wframe,"main",
-		XmNmarginWidth,0,XmNmarginHeight,0,XmNspacing,0,
-		XmNorientation,XmVERTICAL,NULL);
+	wmain=XmVaCreateManagedRowColumn(wframe, "main",
+		XmNmarginWidth, 0,
+		XmNmarginHeight, 0,
+		XmNspacing, 0,
+		XmNorientation, (app_res.horizontal ? XmHORIZONTAL:XmVERTICAL),
+		NULL);
 
 	rc_file_path=(app_res.rc_file)?app_res.rc_file:find_rc_file();
 	
@@ -428,13 +437,13 @@ static Boolean construct_menu(void)
 	}
 
 	wmenu=XmVaCreateManagedRowColumn(wmain,"menu",
-		XmNshadowThickness,0,
-		XmNspacing,1,
-		XmNmarginWidth,0,
-		XmNorientation,XmVERTICAL,
-		XmNrowColumnType,XmMENU_BAR,
-		XmNpacking,XmPACK_COLUMN,
-		XmNpositionIndex,0,
+		XmNshadowThickness, 0,
+		XmNspacing, 1,
+		XmNmarginWidth, 0,
+		XmNorientation, (app_res.horizontal ? XmHORIZONTAL:XmVERTICAL),
+		XmNrowColumnType, XmMENU_BAR,
+		XmNpacking, (app_res.horizontal ? XmPACK_TIGHT:XmPACK_COLUMN),
+		XmNpositionIndex, 0,
 		NULL);
 
 	#ifdef DEBUG_MENU
@@ -538,16 +547,18 @@ static void create_utility_widgets(Widget wparent)
 	Arg args[10];
 	int n;
 	
-	w=XmCreateSeparatorGadget(wparent,"separator",NULL,0);
+	XtSetArg(args[0], XmNorientation,
+		(app_res.horizontal ? XmVERTICAL:XmHORIZONTAL));
+	w = XmCreateSeparatorGadget(wparent, "separator", args, 1);
 	XtManageChild(w);
 	
 	/* 'Session' menu */
-	wmenu=XmVaCreateManagedRowColumn(wparent,"menu",
-		XmNshadowThickness,0,
-		XmNspacing,1,
-		XmNmarginWidth,0,
-		XmNorientation,XmVERTICAL,
-		XmNrowColumnType,XmMENU_BAR,NULL);
+	wmenu=XmVaCreateManagedRowColumn(wparent, "menu",
+		XmNshadowThickness, 0,
+		XmNspacing, 1,
+		XmNmarginWidth, 0,
+		XmNorientation, (app_res.horizontal ? XmHORIZONTAL:XmVERTICAL),
+		XmNrowColumnType, XmMENU_BAR, NULL);
 	
 	wpulldown=XmCreatePulldownMenu(wmenu,"sessionPulldown",NULL,0);
 			
@@ -603,7 +614,9 @@ static void create_utility_widgets(Widget wparent)
 	}
 
 	/* The time-date display */
-	w=XmCreateSeparatorGadget(wparent,"separator",NULL,0);
+	XtSetArg(args[0], XmNorientation,
+		(app_res.horizontal ? XmVERTICAL:XmHORIZONTAL));
+	w = XmCreateSeparatorGadget(wparent, "separator", args, 1);
 
 	n=0;
 	XtSetArg(args[n],XmNalignment,XmALIGNMENT_CENTER); n++;
