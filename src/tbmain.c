@@ -75,12 +75,10 @@ static void sigchld_handler(int);
 static void sigusr_handler(int);
 static void xt_sigusr1_handler(XtPointer,XtSignalId*);
 static void suspend_cb(Widget,XtPointer,XtPointer);
-#ifndef NO_SESSIONMGR
 static void logout_cb(Widget,XtPointer,XtPointer);
 static void lock_cb(Widget,XtPointer,XtPointer);
 static Boolean send_xmsm_cmd(const char *command);
 static int local_x_err_handler(Display*,XErrorEvent*);
-#endif /* NO_SESSIONMGR */
 
 
 struct tb_resources {
@@ -133,14 +131,12 @@ String fallback_res[]={
 #define APP_NAME "xmtoolbox"
 #define RC_NAME	"toolboxrc"
 
-#ifndef NO_SESSIONMGR
 Atom xa_xmsm_mgr=None;
 Atom xa_xmsm_pid=None;
 Atom xa_xmsm_cmd=None;
 int (*def_x_err_handler)(Display*,XErrorEvent*)=NULL;
 const char xmsm_cmd_err[] =
 	"Cannot retrieve session manager PID.\nxmsm not running?";
-#endif /* NO_SESSIONMGR */
 
 XtAppContext app_context;
 Widget wshell;
@@ -223,11 +219,9 @@ int main(int argc, char **argv)
 	
 	xt_sigusr1 = XtAppAddSignal(app_context,xt_sigusr1_handler,NULL);
 
-	#ifndef NO_SESSIONMGR
 	xa_xmsm_mgr = XInternAtom(XtDisplay(wshell),XMSM_ATOM_NAME,True);
 	xa_xmsm_pid = XInternAtom(XtDisplay(wshell),XMSM_PID_ATOM_NAME,True);
 	xa_xmsm_cmd = XInternAtom(XtDisplay(wshell),XMSM_CMD_ATOM_NAME,True);
-	#endif
 
 	XtRealizeWidget(wshell);
 	setup_hotkeys();
@@ -544,7 +538,6 @@ static void create_utility_widgets(Widget wparent)
 	Arg args[10];
 	int n;
 	
-	#ifndef NO_SESSIONMGR
 	w=XmCreateSeparatorGadget(wparent,"separator",NULL,0);
 	XtManageChild(w);
 	
@@ -609,8 +602,6 @@ static void create_utility_widgets(Widget wparent)
 		XtManageChild(w);
 	}
 
-	#endif /* NO_SESSIONMGR */
-	
 	/* The time-date display */
 	w=XmCreateSeparatorGadget(wparent,"separator",NULL,0);
 
@@ -1004,7 +995,6 @@ static void menu_command_cb(Widget w,
 	free(exp_cmd);
 }
 
-#ifndef NO_SESSIONMGR
 /*
  * Sends a command message to XmSm. Returns True on success.
  */
@@ -1106,7 +1096,6 @@ static void logout_cb(Widget w, XtPointer client_data, XtPointer call_data)
 		message_dialog(False, xmsm_cmd_err);
 	}
 }
-#endif /* NO_SESSIONMGR */
 
 static void sigchld_handler(int sig)
 {
