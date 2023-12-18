@@ -7,11 +7,6 @@
 	&NEdit: nedit
 	SEPARATOR
 	&GIMP: gimp
-	&Blender: blender
-}
-
-&Web \& Mail
-{
 	&Web-Browser: links -g
 	&E-Mail: xterm -title "E-Mail" -geometry 96x40 -e mutt
 }
@@ -20,7 +15,6 @@
 {
 	X&OSView: xosview
 	X&pdf: xpdf
-	&Ghostview: gv
 	SEPARATOR
 	X11 &Utilities 
 	{

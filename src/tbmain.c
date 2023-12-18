@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 alx@fastestcode.org
+ * Copyright (C) 2018-2023 alx@fastestcode.org
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -56,6 +56,7 @@
 static char* find_rc_file(void);
 static Boolean construct_menu(void);
 static void create_utility_widgets(Widget);
+static void set_icon(Widget);
 static void setup_hotkeys(void);
 static int xgrabkey_err_handler(Display*,XErrorEvent*);
 static void handle_root_event(XEvent*);
@@ -91,6 +92,7 @@ struct tb_resources {
 	unsigned int rcfile_check_time;
 	Boolean show_commands;
 	Boolean horizontal;
+	Boolean separators;
 } app_res;
 
 #define RES_FIELD(f) XtOffsetOf(struct tb_resources,f)
@@ -115,6 +117,9 @@ XtResource xrdb_resources[]={
 	},
 	{ "horizontal","Horizontal",XmRBoolean,sizeof(Boolean),
 		RES_FIELD(horizontal),XmRImmediate,(XtPointer)False
+	},
+	{ "separators","Separators",XmRBoolean,sizeof(Boolean),
+		RES_FIELD(separators),XmRImmediate,(XtPointer)True
 	}
 };
 #undef RES_FIELD
@@ -128,8 +133,10 @@ static XrmOptionDescRec xrdb_options[]={
 };
 
 String fallback_res[]={
-	"XmToolbox.x:8",
-	"XmToolbox.y:28",
+	"XmToolbox.x: 8",
+	"XmToolbox.y: 28",
+	"XmToolbox.mwmDecorations: 58",
+	"*mainFrame.shadowThickness: 1",
 	NULL
 };
 
@@ -171,11 +178,10 @@ int main(int argc, char **argv)
 	XtSetLanguageProc(NULL,NULL,NULL);
 	XtToolkitInitialize();
 	
-	wshell=XtVaAppInitialize(&app_context,"XmToolbox",
-		xrdb_options,XtNumber(xrdb_options),&argc,argv,fallback_res,
-		XmNiconName,APP_TITLE,XmNallowShellResize,True,
-		XmNmwmDecorations,MWM_DECOR_TITLE|MWM_DECOR_MINIMIZE|MWM_DECOR_MENU,
-		XmNmwmFunctions,MWM_FUNC_MOVE|MWM_FUNC_MINIMIZE,NULL);
+	wshell=XtVaAppInitialize(&app_context, "XmToolbox",
+		xrdb_options,XtNumber(xrdb_options), &argc,argv, fallback_res,
+		XmNiconName, APP_TITLE, XmNallowShellResize, True,
+		XmNmwmFunctions, MWM_FUNC_MOVE|MWM_FUNC_MINIMIZE, NULL);
 	
 	XtGetApplicationResources(wshell,&app_res,xrdb_resources,
 		XtNumber(xrdb_resources),NULL,0);
@@ -200,7 +206,7 @@ int main(int argc, char **argv)
 	}
 
 	wframe=XmVaCreateManagedFrame(wshell,"mainFrame",
-		XmNshadowThickness,2,XmNshadowType,XmSHADOW_OUT,NULL);
+		XmNshadowType, XmSHADOW_OUT, NULL);
 	
 	wmain=XmVaCreateManagedRowColumn(wframe, "main",
 		XmNmarginWidth, 0,
@@ -231,8 +237,9 @@ int main(int argc, char **argv)
 	xa_xmsm_mgr = XInternAtom(XtDisplay(wshell),XMSM_ATOM_NAME,True);
 	xa_xmsm_pid = XInternAtom(XtDisplay(wshell),XMSM_PID_ATOM_NAME,True);
 	xa_xmsm_cmd = XInternAtom(XtDisplay(wshell),XMSM_CMD_ATOM_NAME,True);
-
+	
 	XtRealizeWidget(wshell);
+	set_icon(wshell);
 	setup_hotkeys();
 
 	root_window = XDefaultRootWindow(XtDisplay(wshell));
@@ -247,6 +254,38 @@ int main(int argc, char **argv)
 	}
 	
 	return 0;
+}
+
+static void set_icon(Widget wshell)
+{
+	Pixmap image;
+	Pixmap mask;
+	Window root;
+	Display *dpy = XtDisplay(wshell);
+	int depth, screen;
+	Screen *pscreen;
+
+	#include "xbm/toolbox.xbm"
+	#include "xbm/toolbox_m.xbm"
+	
+	pscreen = XDefaultScreenOfDisplay(dpy);
+	screen = XScreenNumberOfScreen(pscreen);
+	root = RootWindowOfScreen(pscreen);
+	depth = DefaultDepth(dpy, screen);
+	
+	image = XCreatePixmapFromBitmapData(dpy, root,
+		(char*)toolbox_xbm_bits,
+		toolbox_xbm_width,
+		toolbox_xbm_height,
+		BlackPixel(dpy, screen),
+		WhitePixel(dpy, screen), depth);
+
+	mask = XCreatePixmapFromBitmapData(dpy, root,
+		(char*)toolbox_m_xbm_bits,
+		toolbox_m_xbm_width,
+		toolbox_m_xbm_height, 1, 0, 1);
+	
+	XtVaSetValues(wshell, XmNiconPixmap, image, XmNiconMask, mask, NULL);
 }
 
 /*
@@ -550,7 +589,7 @@ static void create_utility_widgets(Widget wparent)
 	XtSetArg(args[0], XmNorientation,
 		(app_res.horizontal ? XmVERTICAL:XmHORIZONTAL));
 	w = XmCreateSeparatorGadget(wparent, "separator", args, 1);
-	XtManageChild(w);
+	if(app_res.separators) XtManageChild(w);
 	
 	/* 'Session' menu */
 	wmenu=XmVaCreateManagedRowColumn(wparent, "menu",
@@ -624,7 +663,7 @@ static void create_utility_widgets(Widget wparent)
 	XtSetArg(args[n],XmNmarginHeight,6); n++;
 	wdate_time=XmCreateLabelGadget(wparent,"dateTime",args,n);
 	if(app_res.show_date_time){
-		XtManageChild(w);
+		if(app_res.separators) XtManageChild(w);
 		XtManageChild(wdate_time);
 		time_update_cb(NULL,NULL);
 	}

@@ -1,8 +1,10 @@
 ! XmToolbox app-defaults
 
+! Initial position
 XmToolbox.x: 8
 XmToolbox.y: 28
 
+! Default title is login@host 
 ! *title: Toolbox
 ! *hotkey: Super_L
 
@@ -10,6 +12,23 @@ XmToolbox.y: 28
 *dateTimeFormat: %D %l:%M %p
 *showSuspend: True
 
+! Some common values for mwmDecorations
+! Borderless, title buttons:	56
+! Borderless, no title buttons:	8
+! Borders and title buttons:	58
+! Borders, no title buttons:	10
+*mwmDecorations: 58
+
+! Thicker frame shadows for borderless decorations
+! *mainFrame.shadowThickness: 2
+
+! Horizontal layout
+*horizontal: False
+
+! Show separators between launcher, session and date time parts
+*separators: True
+
+! Fonts
 *XmPushButtonGadget.renderTable: menu
 *renderTable.menu.fontType: FONT_IS_XFT
 *renderTable.menu.fontName: Liberation Sans
