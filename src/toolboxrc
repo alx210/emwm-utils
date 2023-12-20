@@ -1,18 +1,26 @@
-# Sample toolboxrc, provided as a starting point for custom configuration 
-# Copy this file to ~/.toolboxrc for per-user configuration
+# Sample toolboxrc. See xmtoolbox(1) manpage for detailed syntax description.
+# Copy this file to ~/.toolboxrc for per-user configuration.
 
+# Every top-level menu is defined by specifying its title followed by
+# the opening bracket. The & character designates the keyboard mnemonic.
 &Programs
 {
+	# A menu item consists of a title and a command
+	# string separated by the : character.
+
 	&File Manager: xfile
 	&NEdit: nedit
-	SEPARATOR
 	&GIMP: gimp
 	&Web-Browser: links -g
 	&E-Mail: xterm -title "E-Mail" -geometry 96x40 -e mutt
 }
 
+
+# Top-level menus, as well as sub-menus may also contain menus.
+# The SEPARATOR keyword places a separator gadget between items.
 &Utilities
 {
+	&XTerm: xterm
 	X&OSView: xosview
 	X&pdf: xpdf
 	SEPARATOR
@@ -27,12 +35,8 @@
 	}
 }
 
-&Terminals
-{
-	&XTerm: xterm
-	X&Term With Scrollbar: xterm -sb -rightbar
-}
-
+# The command string may contain environment variables
+# in sh(1) syntax: $name or ${name}.
 &Locations
 {
 	&Home: xfile $HOME
