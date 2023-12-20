@@ -165,16 +165,11 @@ int main(int argc, char **argv)
 {
 	Window root_window;
 	Widget wframe;
-	char *home;
 	
 	rsignal(SIGUSR1, sigusr_handler);
 	rsignal(SIGUSR2, sigusr_handler);
 	rsignal(SIGCHLD, sigchld_handler);
 
-	if((home=getenv("HOME"))){
-		chdir(home);
-	}
-	
 	XtSetLanguageProc(NULL,NULL,NULL);
 	XtToolkitInitialize();
 	
@@ -218,7 +213,7 @@ int main(int argc, char **argv)
 	rc_file_path=(app_res.rc_file)?app_res.rc_file:find_rc_file();
 	
 	if(rc_file_path){
-		if(access(rc_file_path,F_OK|R_OK) == -1){
+		if(access(rc_file_path, R_OK) == -1){
 			message_dialog(False, "Cannot access RC file. Exiting!");
 			perror(rc_file_path);
 			return EXIT_FAILURE;
