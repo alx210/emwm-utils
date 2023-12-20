@@ -70,7 +70,8 @@ static void init_session(void);
 static void sigchld_handler(int);
 static void sigusr_handler(int);
 static void create_locking_widgets(void);
-static void get_screen_size(Dimension*,Dimension*,Position*,Position*);
+static void create_shade_widgets(void);
+static void get_screen_size(Screen*,Dimension*,Dimension*,Position*,Position*);
 static void lock_screen(void);
 static void unlock_screen(void);
 static void show_unlock_widget(void);
@@ -100,6 +101,7 @@ static void reconfigure_widgets(XRRScreenChangeNotifyEvent *evt);
 /* Application resources */
 struct session_res {
 	Boolean enable_locking;
+	Boolean enable_shade;
 	Boolean blank_on_lock;
 	char *numlock_state;
 	char *wkspace_bg_image;
@@ -125,10 +127,13 @@ struct session_res {
 
 #define RES_FIELD(f) XtOffsetOf(struct session_res,f)
 XtResource xrdb_resources[]={
-	{ "enableLocking","EnableLocking",XmRString,sizeof(Boolean),
+	{ "enableShade","EnableShade",XmRBoolean,sizeof(Boolean),
+		RES_FIELD(enable_shade),XmRImmediate,(XtPointer)True
+	},
+	{ "enableLocking","EnableLocking",XmRBoolean,sizeof(Boolean),
 		RES_FIELD(enable_locking),XmRImmediate,(XtPointer)True
 	},
-	{ "blankOnLock","BlankOnLock",XmRString,sizeof(Boolean),
+	{ "blankOnLock","BlankOnLock",XmRBoolean,sizeof(Boolean),
 		RES_FIELD(blank_on_lock),XmRImmediate,(XtPointer)True
 	},
 	{ "numLockState","NumLockState",XmRString,sizeof(String),
@@ -204,6 +209,7 @@ static Widget *wcovers;
 static Widget wunlock;
 static Widget wpasswd;
 static Widget wmessage;
+static Widget *wshades;
 static XtIntervalId unlock_widget_timer=None;
 static XtIntervalId lock_timer=None;
 static XtSignalId xt_sigusr1;
@@ -249,13 +255,13 @@ int main(int argc, char **argv)
 
 	XtGetApplicationResources(wshell,&app_res,xrdb_resources,
 		XtNumber(xrdb_resources),NULL,0);
-
+	
 	xa_mgr = XInternAtom(XtDisplay(wshell),XMSM_ATOM_NAME,False);
 	xa_pid = XInternAtom(XtDisplay(wshell),XMSM_PID_ATOM_NAME,False);
 	xa_cmd = XInternAtom(XtDisplay(wshell),XMSM_CMD_ATOM_NAME,False);	
 	
-	/* init_session requires an X window */
 	XtRealizeWidget(wshell);
+	XDeleteProperty(XtDisplay(wshell), XtWindow(wshell), XA_WM_COMMAND);
 	
 	/* Initialize Xrandr and set up for screen change notifications */
 	if(XRRQueryExtension(XtDisplay(wshell),
@@ -272,6 +278,9 @@ int main(int argc, char **argv)
 	if(app_res.enable_locking) {
 		register_screen_saver();
 		create_locking_widgets();
+	}
+	if(app_res.enable_shade) {
+		create_shade_widgets();
 	}
 
 	rv = launch_process(app_res.window_manager);
@@ -295,7 +304,7 @@ int main(int argc, char **argv)
 	XtAddEventHandler(wshell, PropertyChangeMask, False,
 		msg_property_handler, NULL);
 
-	for(;;) {
+	while(!XtAppGetExitFlag(app_context)) {
 		XEvent evt;
 		
 		XtAppNextEvent(app_context,&evt);
@@ -340,36 +349,37 @@ static void reconfigure_widgets(XRRScreenChangeNotifyEvent *evt)
 {
 	Arg args[4];
 	unsigned int n = 0;
-	int scrn;
+	int evt_scrn;
 	Widget w;
 	Dimension width, height;
 	Dimension swidth, sheight;
 	Position xoff, yoff;
 
-	scrn = XRRRootToScreen(evt->display, evt->root);
+	evt_scrn = XRRRootToScreen(evt->display, evt->root);
+	
+	XtResizeWidget(wcovers[evt_scrn], evt->width, evt->height, 0);
 
-	XtSetArg(args[n], XmNwidth, evt->width); n++;
-	XtSetArg(args[n], XmNheight, evt->height); n++;
-	XtSetValues(wcovers[scrn], args, n);
-
-	w = XtNameToWidget(wcovers[scrn],"*coverBackdrop");
+	w = XtNameToWidget(wcovers[evt_scrn],"*coverBackdrop");
 	assert(w);
 	XtSetValues(w, args, n);
 
-	get_screen_size(&swidth,&sheight,&xoff,&yoff);
+	get_screen_size(XtScreen(w), &swidth, &sheight, &xoff, &yoff);
 
 	w = XtNameToWidget(w,"*unlock");
 	assert(w);
-	n = 0;
 
+	n = 0;
 	XtSetArg(args[n], XmNwidth, &width); n++;
 	XtSetArg(args[n], XmNheight, &height); n++;
 	XtGetValues(w, args, n);
 
 	n = 0;
-	XtSetArg(args[n], XmNx, (xoff + (swidth - width) / 2)); n++;
-	XtSetArg(args[n], XmNy, (yoff + (sheight - height) / 2)); n++;
+	XtMoveWidget(w, (xoff + (swidth - width) / 2),
+		(yoff + (sheight - height) / 2));
 	XtSetValues(w, args, n);
+	
+	if(app_res.enable_shade)
+		XtResizeWidget(wshades[evt_scrn], evt->width, evt->height, 0);
 }
 
 /*
@@ -579,7 +589,7 @@ static void create_locking_widgets(void)
 	nscreens = XScreenCount(dpy);
 	wcovers = calloc(nscreens,sizeof(Widget));
 	if(!wcovers) {
-		perror("malloc");
+		log_msg("malloc: %s\n", strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 	
@@ -631,7 +641,7 @@ static void create_locking_widgets(void)
 		}
 				
 		wcovers[i] = XtCreatePopupShell("coverShell",
-			topLevelShellWidgetClass,wshell,args,n);
+			topLevelShellWidgetClass, wshell, args, n);
 		
 		n = 0;
 		XtSetArg(args[n],XmNbackground,bg_color.pixel); n++;
@@ -688,7 +698,7 @@ static void create_locking_widgets(void)
 		XmNtranslations,passwd_input_tt,NULL);
 	
 	/* Put the unlock box into the center of the screen */
-	get_screen_size(&swidth,&sheight,&xoff,&yoff);
+	get_screen_size(XtScreen(wunlock), &swidth, &sheight, &xoff, &yoff);
 	XtVaGetValues(wunlock,XmNwidth,&width,XmNheight,&height,NULL);
 	XtVaSetValues(wunlock,XmNx,xoff+(swidth-width)/2,
 		XmNy,yoff+(sheight-height)/2,NULL);
@@ -700,7 +710,7 @@ static void create_locking_widgets(void)
 	if(pwb_size == (-1)) pwb_size = DEF_MAX_PASSWD;
 	pwb = malloc(pwb_size+1);
 	if(!pwb){
-		perror("malloc");
+		log_msg("malloc: %s\n", strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 	pwb[0] = '\0';
@@ -716,6 +726,45 @@ static void create_locking_widgets(void)
 	set_unlock_message(NULL);
 	XtManageChild(wmessage);
 }
+
+static void create_shade_widgets(void)
+{
+	Display *dpy = XtDisplay(wshell);
+	int nscreens;
+	int i;
+
+	nscreens = XScreenCount(dpy);
+	wshades = calloc(nscreens, sizeof(Widget));
+	if(!wshades) {
+		log_msg("malloc: %s\n", strerror(errno));
+		app_res.enable_shade = False;
+		return;
+	}
+	
+	for(i=0; i < nscreens; i++){
+		Arg args[18];
+		int n = 0;
+
+		XtSetArg(args[n], XmNmwmDecorations, 0); n++;
+		XtSetArg(args[n], XmNmwmFunctions, 0); n++;
+		XtSetArg(args[n], XmNx, 0); n++;
+		XtSetArg(args[n], XmNy, 0); n++;
+		XtSetArg(args[n], XmNwidth, DisplayWidth(dpy,i)); n++;
+		XtSetArg(args[n], XmNheight, DisplayHeight(dpy,i)); n++;
+		XtSetArg(args[n], XmNuseAsyncGeometry, True); n++;
+		XtSetArg(args[n], XmNmappedWhenManaged, False); n++;
+		XtSetArg(args[n], XmNresizePolicy, XmRESIZE_NONE); n++;
+		XtSetArg(args[n], XmNdepth, DefaultDepth(dpy,i)); n++;
+		XtSetArg(args[n], XmNcolormap, DefaultColormap(dpy,i)); n++;
+		XtSetArg(args[n], XmNscreen, XScreenOfDisplay(dpy,i)); n++;
+				
+		wshades[i] = XtCreatePopupShell("shade",
+			topLevelShellWidgetClass, wshell, args, n);
+
+		XtRealizeWidget(wshades[i]);
+	}
+}
+
 
 /*
  * Creates a root window property containing the window handle of the
@@ -873,7 +922,7 @@ static void lock_timeout_cb(XtPointer ptr, XtIntervalId *id)
  * Returns size and x/y offsets of the primary xinerama screen,
  * or just the screen size if xinerama isn't active.
  */
-static void get_screen_size(Dimension *pwidth, Dimension *pheight,
+static void get_screen_size(Screen *scr, Dimension *pwidth, Dimension *pheight,
 	Position *px, Position *py)
 {
 	if(XineramaIsActive(XtDisplay(wshell))){
@@ -896,8 +945,6 @@ static void get_screen_size(Dimension *pwidth, Dimension *pheight,
 		XFree(xis);
 		return;
 	}else{
-		Screen *scr;
-		scr=XtScreen(wshell);
 		*pwidth=XWidthOfScreen(scr);
 		*pheight=XHeightOfScreen(scr);
 		*px=0;
@@ -1208,7 +1255,7 @@ static void error_dialog(void)
 	xm_message = XmStringCreateLocalized(
 		"The session manager has encountered an error,\n"
 		"most likely due to improper configuration.\n"
-		"See ~/.xmsession.log for details.");
+		"See the log file for details.");
 	xm_title = XmStringCreateLocalized("XmSm");
 	xm_dismiss = XmStringCreateLocalized("Dismiss");
 
@@ -1273,17 +1320,22 @@ static void exit_session_dialog(void)
 	static Widget wreboot;
 	static Widget wcancel;
 	static Widget wok;
+	Dimension swidth, sheight;
+	Dimension width, height;
+	Position x, y;
 	Widget wresult = None;
 	char *command = NULL;
+	Display *dpy = XtDisplay(wshell);
+	int nscreens = XScreenCount(dpy);
+	int i;
 
 	if(!wdlgshell) {
+		int scrn = XScreenNumberOfScreen(XtScreen(wshell));
+		Widget wparent = (app_res.enable_shade ? wshades[scrn] : wshell);
 		Widget wlabel;
 		Widget wsep;
 		Widget wrc;
 		XmString string;
-		Dimension swidth, sheight;
-		Dimension width, height;
-		Position x, y;
 
 		XtCallbackRec button_cb[]={
 			{(XtCallbackProc)exit_dialog_cb,(XtPointer)&wresult},
@@ -1291,9 +1343,9 @@ static void exit_session_dialog(void)
 		};
 
 		wdlgshell = XtVaCreatePopupShell("confirmExitDialog",
-			xmDialogShellWidgetClass,wshell,XmNallowShellResize,True,
+			xmDialogShellWidgetClass, wparent, XmNallowShellResize, True,
 			XmNmwmDecorations, MWM_DECOR_TITLE|MWM_DECOR_BORDER,
-			XmNmwmFunctions,0,XmNuseAsyncGeometry,True,NULL);
+			XmNmwmFunctions, 0, XmNuseAsyncGeometry, True, NULL);
 		
 		string = XmStringCreateLocalized("Leaving Session");
 		wdialog = XmVaCreateManagedForm(wdlgshell,"confirmExit",
@@ -1364,19 +1416,86 @@ static void exit_session_dialog(void)
 		XtVaSetValues(wdialog, XmNinitialFocus, wok, 
 			XmNdefaultButton, wok, NULL);
 		
+		if(app_res.enable_shade) {
+			for(i = 0; i < nscreens; i++)
+				XtRealizeWidget(wshades[i]);
+		}
+
 		XtRealizeWidget(wdlgshell);
-		
-		get_screen_size(&swidth,&sheight,&x,&y);
-		XtVaGetValues(wdlgshell,XmNwidth,&width,XmNheight,&height,NULL);
-		XtMoveWidget(wdlgshell,x+(swidth-width)/2,y+(sheight-height)/2);
 	}
 	
+	get_screen_size(XtScreen(wshell), &swidth, &sheight, &x, &y);
+	XtVaGetValues(wdlgshell,XmNwidth,&width,XmNheight,&height,NULL);
+	XtMoveWidget(wdlgshell,x+(swidth-width)/2,y+(sheight-height)/2);
+	
 	XtManageChild(wdialog);
+	
+	if(app_res.enable_shade) {
+		#ifdef SHADE_ALT_STIPPLE
+		const char stipple_data[] = { 0x55, 0xAA, 0x55, 0xAA };
+		#else
+		const char stipple_data[] = { 0x88, 0x22, 0x44, 0x11 };
+		#endif
+		unsigned int stipple_size = (sizeof(stipple_data) / sizeof(char));
+		XGCValues gcv;
+		int gcv_mask = GCFunction | GCBackground | GCFillStyle | GCStipple |
+			GCTileStipXOrigin | GCTileStipYOrigin | GCSubwindowMode;
+		
+		gcv.function = GXcopy;
+		gcv.fill_style = FillStippled;
+		gcv.subwindow_mode = IncludeInferiors;
+		gcv.ts_x_origin = 0;
+		gcv.ts_y_origin = 0;
+		
+		for(i = 0; i < nscreens; i++) {
+			Pixmap pm;
+			GC gc;
+			Screen *screen = XtScreen(wshades[i]);
+			Window root_wnd = RootWindowOfScreen(screen);
+			Window dest_wnd = XtWindow(wshades[i]);
+			unsigned int dpy_width = DisplayWidth(dpy, i);
+			unsigned int dpy_height =  DisplayHeight(dpy, i);
+
+			gcv.stipple = XCreatePixmapFromBitmapData(dpy, root_wnd,
+				(char*)stipple_data, stipple_size, stipple_size, 0, 1, 1);
+			
+			gcv.background = BlackPixelOfScreen(screen);
+			gc = XCreateGC(dpy, dest_wnd, gcv_mask, &gcv);
+			
+			pm = XCreatePixmap(dpy, dest_wnd, 
+				dpy_width, dpy_height, DefaultDepthOfScreen(screen));
+			if(!pm) {
+				XFreeGC(dpy, gc);
+				log_msg("Failed to allocate background for screen %d\n", i);
+				continue;
+			}
+
+			XCopyArea(dpy, root_wnd, pm, gc, 0, 0, dpy_width, dpy_height, 0, 0);
+			XFillRectangle(dpy, pm, gc, 0, 0, dpy_width, dpy_height);
+			
+			XtVaSetValues(wshades[i], XmNbackgroundPixmap, pm, NULL);
+
+			XFreePixmap(dpy, gcv.stipple);
+			XFreePixmap(dpy, pm);
+			XFreeGC(dpy, gc);
+			
+			XtMapWidget(wshades[i]);
+		}
+	}
 
 	while(wresult == None)
 		XtAppProcessEvent(app_context,XtIMXEvent);
 	
-	if(wresult == wcancel) return;
+	if(wresult == wcancel) {
+		if(app_res.enable_shade) {
+			for(i = 0; i < nscreens; i++) {
+				XtUnmapWidget(wshades[i]);
+				XtVaSetValues(wshades[i], XmNbackgroundPixmap,
+					XmUNSPECIFIED_PIXMAP, NULL);
+			}
+		}
+		return;
+	}
 	
 	if(XmToggleButtonGadgetGetState(wshutdown)){
 		command = SHUTDOWN_CMD;
@@ -1391,8 +1510,20 @@ static void exit_session_dialog(void)
 
 	XDeleteProperty(XtDisplay(wshell),
 		DefaultRootWindow(XtDisplay(wshell)),xa_mgr);
+	
+	for(i = 0; i < nscreens; i++) {
+		Window root_wnd = RootWindow(dpy, i);
+		XSetWindowBackground(dpy, root_wnd,	BlackPixel(dpy, i));
+		XSetWindowBackgroundPixmap(dpy, root_wnd, None);
+		if(app_res.enable_shade) {
+			XtUnmapWidget(wshades[i]);
+			XtVaSetValues(wshades[i], XmNbackgroundPixmap,
+				XmUNSPECIFIED_PIXMAP, NULL);
+		}
+	}
+	XFlush(dpy);
 
-	exit(0);
+	XtAppSetExitFlag(app_context);
 }
 
 /*

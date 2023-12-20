@@ -5,6 +5,7 @@
 
 *enableLocking: True
 *blankOnLock: True
+*enableShade: True
 
 *blankTimeout: 400
 *lockTimeout: 600
