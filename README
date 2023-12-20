@@ -7,6 +7,9 @@ xmtoolbox is an application launcher/menu configured with a simple text file.
 It also communicates with the session manager to provide lock, log out, and
 shutdown commands.
 
+Example toolbox configuration file (toolboxrc) is provided in the src directory,
+and also installed into the X11 config directory.
+
 BUILDING AND INSTALLING
 =======================
 X11 and Motif libraries and headers are required to build all utilities.
