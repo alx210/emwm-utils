@@ -46,6 +46,7 @@
 #include <Xm/ToggleBG.h>
 #include <Xm/MessageB.h>
 #include <Xm/MwmUtil.h>
+#include <Xm/Protocols.h>
 #include <X11/IntrinsicP.h>
 #include <X11/XKBlib.h>
 #include <X11/cursorfont.h>
@@ -97,6 +98,8 @@ static void exit_session_dialog(void);
 static void error_dialog(void);
 static Boolean exec_sys_cmd(const char *command);
 static void reconfigure_widgets(XRRScreenChangeNotifyEvent *evt);
+static void exit_dialog_wm_offset_cb(Widget, XtPointer, XtPointer);
+
 
 /* Application resources */
 struct session_res {
@@ -203,6 +206,8 @@ char *bin_name = NULL;
 static Atom xa_mgr;
 static Atom xa_pid;
 static Atom xa_cmd;
+static Atom xa_MOTIF_WM_MESSAGES;
+static Atom xa_MOTIF_WM_OFFSET;
 XtAppContext app_context;
 Widget wshell;
 static Widget *wcovers;
@@ -258,8 +263,8 @@ int main(int argc, char **argv)
 	
 	xa_mgr = XInternAtom(XtDisplay(wshell),XMSM_ATOM_NAME,False);
 	xa_pid = XInternAtom(XtDisplay(wshell),XMSM_PID_ATOM_NAME,False);
-	xa_cmd = XInternAtom(XtDisplay(wshell),XMSM_CMD_ATOM_NAME,False);	
-	
+	xa_cmd = XInternAtom(XtDisplay(wshell),XMSM_CMD_ATOM_NAME,False);
+
 	XtRealizeWidget(wshell);
 	XDeleteProperty(XtDisplay(wshell), XtWindow(wshell), XA_WM_COMMAND);
 	
@@ -303,6 +308,12 @@ int main(int argc, char **argv)
 	xt_sigusr1 = XtAppAddSignal(app_context,xt_sigusr1_handler,NULL);
 	XtAddEventHandler(wshell, PropertyChangeMask, False,
 		msg_property_handler, NULL);
+
+	xa_MOTIF_WM_OFFSET =
+		XInternAtom(XtDisplay(wshell), _XA_MOTIF_WM_OFFSET, False);
+	xa_MOTIF_WM_MESSAGES =
+		XInternAtom(XtDisplay(wshell), _XA_MOTIF_WM_MESSAGES, False);
+	XmAddProtocols(wshell, xa_MOTIF_WM_MESSAGES, &xa_MOTIF_WM_OFFSET, 1);
 
 	while(!XtAppGetExitFlag(app_context)) {
 		XEvent evt;
@@ -1320,9 +1331,6 @@ static void exit_session_dialog(void)
 	static Widget wreboot;
 	static Widget wcancel;
 	static Widget wok;
-	Dimension swidth, sheight;
-	Dimension width, height;
-	Position x, y;
 	Widget wresult = None;
 	char *command = NULL;
 	Display *dpy = XtDisplay(wshell);
@@ -1345,7 +1353,8 @@ static void exit_session_dialog(void)
 		wdlgshell = XtVaCreatePopupShell("confirmExitDialog",
 			xmDialogShellWidgetClass, wparent, XmNallowShellResize, True,
 			XmNmwmDecorations, MWM_DECOR_TITLE|MWM_DECOR_BORDER,
-			XmNmwmFunctions, 0, XmNuseAsyncGeometry, True, NULL);
+			XmNmwmFunctions, 0, XmNuseAsyncGeometry, False,
+			XmNmappedWhenManaged, False, NULL);
 		
 		string = XmStringCreateLocalized("Leaving Session");
 		wdialog = XmVaCreateManagedForm(wdlgshell,"confirmExit",
@@ -1420,15 +1429,13 @@ static void exit_session_dialog(void)
 			for(i = 0; i < nscreens; i++)
 				XtRealizeWidget(wshades[i]);
 		}
-
+		
 		XtRealizeWidget(wdlgshell);
+		
+		XmAddProtocolCallback(wdlgshell,
+			xa_MOTIF_WM_MESSAGES, xa_MOTIF_WM_OFFSET,
+				exit_dialog_wm_offset_cb, NULL);
 	}
-	
-	get_screen_size(XtScreen(wshell), &swidth, &sheight, &x, &y);
-	XtVaGetValues(wdlgshell,XmNwidth,&width,XmNheight,&height,NULL);
-	XtMoveWidget(wdlgshell,x+(swidth-width)/2,y+(sheight-height)/2);
-	
-	XtManageChild(wdialog);
 	
 	if(app_res.enable_shade) {
 		#ifdef SHADE_ALT_STIPPLE
@@ -1480,11 +1487,17 @@ static void exit_session_dialog(void)
 			XFreeGC(dpy, gc);
 			
 			XtMapWidget(wshades[i]);
+			XFlush(dpy);
 		}
 	}
+	
+	XtManageChild(wdialog);
+	XtMapWidget(wdlgshell);
 
 	while(wresult == None)
 		XtAppProcessEvent(app_context,XtIMXEvent);
+	
+	XtUnmapWidget(wdlgshell);
 	
 	if(wresult == wcancel) {
 		if(app_res.enable_shade) {
@@ -1573,6 +1586,28 @@ static void msg_property_handler(Widget w,
 	
 	XtFree((char*)prop.value);
 	XFlush(XtDisplay(wshell));
+}
+
+/* 
+ * MWM client offset message handler for the exit dialog shell.
+ * Positions the exit dialog centered on the screen.
+ */
+static void exit_dialog_wm_offset_cb(Widget w,
+	XtPointer client_data, XtPointer call_data)
+{
+	Position x, y;
+	Dimension width, height;
+	Dimension swidth, sheight;
+	XmAnyCallbackStruct *cbs = (XmAnyCallbackStruct*)call_data;
+	Position off_x = (Position)cbs->event->xclient.data.l[1];
+	Position off_y = (Position)cbs->event->xclient.data.l[2];
+	
+	get_screen_size(XtScreen(wshell), &swidth, &sheight, &x, &y);
+	
+	XtVaGetValues(w, XmNwidth, &width, XmNheight, &height, NULL);
+	x += (swidth - width) / 2 - off_x;
+	y += (sheight - height) / 2 - off_y;
+	XtMoveWidget(w, x, y);
 }
 
 /* Button press handler for xt_sigterm_handler confirmation dialog */
