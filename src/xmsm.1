@@ -1,4 +1,4 @@
-.\" Copyright (C) 2018 alx@fastestcode.org
+.\" Copyright (C) 2018-2024 alx@fastestcode.org
 .\"  
 .\" Permission is hereby granted, free of charge, to any person obtaining a
 .\" copy of this software and associated documentation files (the "Software"),
@@ -58,6 +58,7 @@ Default is 480 seconds\. See also: \fBlockTimeout\fP\.
 .TP
 \fBenableLocking\fP \fIBoolean\fP
 Enable screen locking capability\. Default is \fBTrue\fp\.
+See also \fBlockTimeout\fP.
 .TP
 \fBenableShade\fP \fIBoolean\fP
 Enable shading of workspace contents when the Logout dialog is displayed\.
@@ -77,7 +78,7 @@ Also see the \fBIMAGE FILES\fP section\.
 \fBlockTimeout\fP \fISeconds\fP
 Period of inactivity after which screen lock is engaged\.
 Set to 0 to disable timed locking\.
-Default is 600 seconds\. See also: \fBblankTimeout\fP\.
+Default is 600 seconds\. See also: \fBblankTimeout\fP, fBenableLocking\fP\.
 .TP
 \fBlockOnSuspend\fP \fIBoolean\fP
 If True, locks the screen before executing the suspend command\.
@@ -130,9 +131,9 @@ of that color\.
 .PP
 xmsm responds to SIGUSR1 by engaging screen lock\.
 .SH CAVEATS
-The xmsm binary must be setuid root for screen locking to work, however
-it discards root privileges at startup and restores them only during
-password check and when executing system commands\.
+The xmsm binary must be setuid root for screen locking and shutdown/reboot
+functionality, it discards root privileges at startup and restores them only
+during password check and when executing system commands\.
 .PP
 XmSm does not implement the ICCCM session save/restore protocol.
 .PP
