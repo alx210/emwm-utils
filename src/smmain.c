@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 alx@fastestcode.org
+ * Copyright (C) 2018-2024 alx@fastestcode.org
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -94,6 +94,7 @@ static void set_numlock_state(void);
 static int local_x_err_handler(Display*,XErrorEvent*);
 static void xt_sigusr1_handler(XtPointer,XtSignalId*);
 static void msg_property_handler(Widget, XtPointer, XEvent*, Boolean*);
+static void set_config_info(void);
 static void exit_session_dialog(void);
 static void error_dialog(void);
 static Boolean exec_sys_cmd(const char *command);
@@ -104,6 +105,7 @@ static void exit_dialog_wm_offset_cb(Widget, XtPointer, XtPointer);
 /* Application resources */
 struct session_res {
 	Boolean enable_locking;
+	Boolean enable_suspend;
 	Boolean enable_shade;
 	Boolean blank_on_lock;
 	char *numlock_state;
@@ -135,6 +137,10 @@ XtResource xrdb_resources[]={
 	},
 	{ "enableLocking","EnableLocking",XmRBoolean,sizeof(Boolean),
 		RES_FIELD(enable_locking),XmRImmediate,(XtPointer)True
+	},
+	{ "enableSuspend","EnableSuspend",XmRBoolean,
+		sizeof(Boolean),RES_FIELD(enable_suspend),
+		XmRImmediate,(XtPointer)True
 	},
 	{ "blankOnLock","BlankOnLock",XmRBoolean,sizeof(Boolean),
 		RES_FIELD(blank_on_lock),XmRImmediate,(XtPointer)True
@@ -206,6 +212,7 @@ char *bin_name = NULL;
 static Atom xa_mgr;
 static Atom xa_pid;
 static Atom xa_cmd;
+static Atom xa_cfg;
 static Atom xa_MOTIF_WM_MESSAGES;
 static Atom xa_MOTIF_WM_OFFSET;
 XtAppContext app_context;
@@ -264,6 +271,7 @@ int main(int argc, char **argv)
 	xa_mgr = XInternAtom(XtDisplay(wshell),XMSM_ATOM_NAME,False);
 	xa_pid = XInternAtom(XtDisplay(wshell),XMSM_PID_ATOM_NAME,False);
 	xa_cmd = XInternAtom(XtDisplay(wshell),XMSM_CMD_ATOM_NAME,False);
+	xa_cfg = XInternAtom(XtDisplay(wshell),XMSM_CFG_ATOM_NAME,False);
 
 	XtRealizeWidget(wshell);
 	XDeleteProperty(XtDisplay(wshell), XtWindow(wshell), XA_WM_COMMAND);
@@ -279,7 +287,8 @@ int main(int argc, char **argv)
 	init_session();
 	set_root_background();
 	set_numlock_state();
-
+	set_config_info();
+	
 	if(app_res.enable_locking) {
 		register_screen_saver();
 		create_locking_widgets();
@@ -294,7 +303,7 @@ int main(int argc, char **argv)
 			app_res.window_manager,strerror(rv));
 		return EXIT_FAILURE;
 	}
-	
+
 	if(app_res.launcher){
 		rv = launch_process(app_res.launcher);
 		if(rv){
@@ -1580,12 +1589,31 @@ static void msg_property_handler(Widget w,
 			else
 				log_msg("Can't lock. Locking is disabled\n");
 		}
-
-		if(!exec_sys_cmd(SUSPEND_CMD)) error_dialog();
+		if(app_res.enable_suspend) {
+			if(!exec_sys_cmd(SUSPEND_CMD))
+				error_dialog();
+		} else {
+			log_msg("Can't suspend. Command is disabled\n");
+		}
 	}
 	
 	XtFree((char*)prop.value);
 	XFlush(XtDisplay(wshell));
+}
+
+/*
+ * Sets the _XM_SESSION_MANAGER_CFG property
+ */
+static void set_config_info(void)
+{
+	Display *dpy = XtDisplay(wshell);
+	Window root = DefaultRootWindow(dpy);
+	unsigned long state = 
+		(app_res.enable_locking ? XMSM_CFG_LOCK : 0) |
+		(app_res.enable_suspend ? XMSM_CFG_SUSPEND : 0);
+	
+	XChangeProperty(dpy, root, xa_cfg, XA_INTEGER, 32,
+		PropModeReplace, (unsigned char*)&state, 1);
 }
 
 /* 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 alx@fastestcode.org
+ * Copyright (C) 2018-2024 alx@fastestcode.org
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -27,6 +27,10 @@
 #define XMSM_ATOM_NAME "_XM_SESSION_MANAGER"
 #define XMSM_PID_ATOM_NAME "_XM_SESSION_MANAGER_PID"
 #define XMSM_CMD_ATOM_NAME "_XM_SESSION_MANAGER_CMD"
+#define XMSM_CFG_ATOM_NAME "_XM_SESSION_MANAGER_CFG"
 #define XMSM_LOGOUT_CMD "LOGOUT"
 #define XMSM_LOCK_CMD "LOCK"
 #define XMSM_SUSPEND_CMD "SUSPEND"
+
+#define XMSM_CFG_SUSPEND 0x0001
+#define XMSM_CFG_LOCK    0x0002

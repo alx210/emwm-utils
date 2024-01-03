@@ -10,7 +10,6 @@ XmToolbox.y: 28
 
 *dateTimeDisplay: True
 *dateTimeFormat: %D %l:%M %p
-*showSuspend: True
 
 ! Some common values for mwmDecorations
 ! Borderless, title buttons:	56

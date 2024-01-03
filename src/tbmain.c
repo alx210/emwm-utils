@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2023 alx@fastestcode.org
+ * Copyright (C) 2018-2024 alx@fastestcode.org
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -80,17 +80,16 @@ static void logout_cb(Widget,XtPointer,XtPointer);
 static void lock_cb(Widget,XtPointer,XtPointer);
 static Boolean send_xmsm_cmd(const char *command);
 static int local_x_err_handler(Display*,XErrorEvent*);
+static Boolean get_xmsm_config(unsigned long*);
 
 
 struct tb_resources {
 	char *title;
 	Boolean show_date_time;
-	Boolean show_suspend;
 	char *date_time_fmt;
 	char *rc_file;
 	char *hotkey;
 	unsigned int rcfile_check_time;
-	Boolean show_commands;
 	Boolean horizontal;
 	Boolean separators;
 } app_res;
@@ -111,9 +110,6 @@ XtResource xrdb_resources[]={
 	},
 	{ "hotkey","Hotkey",XmRString,sizeof(String),
 		RES_FIELD(hotkey),XmRImmediate,(XtPointer)NULL
-	},
-	{ "showSuspend","ShowSuspend",XmRBoolean,sizeof(Boolean),
-		RES_FIELD(show_suspend),XmRImmediate,(XtPointer)True
 	},
 	{ "horizontal","Horizontal",XmRBoolean,sizeof(Boolean),
 		RES_FIELD(horizontal),XmRImmediate,(XtPointer)False
@@ -147,6 +143,7 @@ String fallback_res[]={
 Atom xa_xmsm_mgr=None;
 Atom xa_xmsm_pid=None;
 Atom xa_xmsm_cmd=None;
+Atom xa_xmsm_cfg=None;
 int (*def_x_err_handler)(Display*,XErrorEvent*)=NULL;
 const char xmsm_cmd_err[] =
 	"Cannot retrieve session manager PID.\nxmsm not running?";
@@ -160,6 +157,7 @@ String rc_file_path=NULL;
 XtSignalId xt_sigusr1;
 KeyCode hotkey_code=0;
 unsigned int hotkey_mods=0;
+unsigned long xmsm_cfg = 0;
 
 int main(int argc, char **argv)
 {
@@ -180,6 +178,14 @@ int main(int argc, char **argv)
 	
 	XtGetApplicationResources(wshell,&app_res,xrdb_resources,
 		XtNumber(xrdb_resources),NULL,0);
+
+	xa_xmsm_mgr = XInternAtom(XtDisplay(wshell), XMSM_ATOM_NAME, True);
+	xa_xmsm_pid = XInternAtom(XtDisplay(wshell), XMSM_PID_ATOM_NAME, True);
+	xa_xmsm_cmd = XInternAtom(XtDisplay(wshell), XMSM_CMD_ATOM_NAME, True);
+	xa_xmsm_cfg = XInternAtom(XtDisplay(wshell), XMSM_CFG_ATOM_NAME, True);
+
+	if(!get_xmsm_config(&xmsm_cfg)) 
+		message_dialog(False, xmsm_cmd_err);
 
 	if(!app_res.title){
 		char *title;
@@ -229,10 +235,6 @@ int main(int argc, char **argv)
 	
 	xt_sigusr1 = XtAppAddSignal(app_context,xt_sigusr1_handler,NULL);
 
-	xa_xmsm_mgr = XInternAtom(XtDisplay(wshell),XMSM_ATOM_NAME,True);
-	xa_xmsm_pid = XInternAtom(XtDisplay(wshell),XMSM_PID_ATOM_NAME,True);
-	xa_xmsm_cmd = XInternAtom(XtDisplay(wshell),XMSM_CMD_ATOM_NAME,True);
-	
 	XtRealizeWidget(wshell);
 	set_icon(wshell);
 	setup_hotkeys();
@@ -617,15 +619,16 @@ static void create_utility_widgets(Widget wparent)
 	w=XmCreateSeparatorGadget(wpulldown,"separator",NULL,0);
 	XtManageChild(w);
 
-	n=0;
-	title=XmStringCreateLocalized("Lock");
-	XtSetArg(args[n],XmNlabelString,title); n++;
-	XtSetArg(args[n],XmNmnemonic,(KeySym)'L'); n++;
-	w=XmCreatePushButtonGadget(wpulldown,"lockMenuButton",args,n);
-	XtAddCallback(w,XmNactivateCallback,lock_cb,NULL);
-	XmStringFree(title);
-	XtManageChild(w);
-
+	if(xmsm_cfg & XMSM_CFG_LOCK) {
+		n=0;
+		title=XmStringCreateLocalized("Lock");
+		XtSetArg(args[n],XmNlabelString,title); n++;
+		XtSetArg(args[n],XmNmnemonic,(KeySym)'L'); n++;
+		w=XmCreatePushButtonGadget(wpulldown,"lockMenuButton",args,n);
+		XtAddCallback(w,XmNactivateCallback,lock_cb,NULL);
+		XmStringFree(title);
+		XtManageChild(w);
+	}
 
 	n=0;
 	title=XmStringCreateLocalized("Logout...");
@@ -636,7 +639,7 @@ static void create_utility_widgets(Widget wparent)
 	XmStringFree(title);
 	XtManageChild(w);
 
-	if(app_res.show_suspend) {
+	if(xmsm_cfg & XMSM_CFG_SUSPEND) {
 		n=0;
 		title=XmStringCreateLocalized("Suspend");
 		XtSetArg(args[n],XmNlabelString,title); n++;
@@ -1070,9 +1073,9 @@ static Boolean send_xmsm_cmd(const char *command)
 
 		def_x_err_handler = XSetErrorHandler(local_x_err_handler);
 		
-		XGetWindowProperty(dpy,shell,xa_xmsm_pid,0,sizeof(Window),
-			False,XA_INTEGER,&ret_type,&ret_format,
-			&ret_items,&left_items,&prop_data);
+		XGetWindowProperty(dpy, shell, xa_xmsm_pid, 0, sizeof(pid_t),
+			False, XA_INTEGER, &ret_type, &ret_format,
+			&ret_items, &left_items, &prop_data);
 		if(ret_items) XFree(prop_data);
 
 		if(ret_type == XA_INTEGER){
@@ -1085,6 +1088,32 @@ static Boolean send_xmsm_cmd(const char *command)
 		}
 		XSync(dpy, False);
 		XSetErrorHandler(def_x_err_handler);
+	}
+	return False;
+}
+
+/*
+ * Retrieves xmsm configuration state. Returns True on success.
+ */
+static Boolean get_xmsm_config(unsigned long *flags)
+{
+	Display *dpy = XtDisplay(wshell);
+	Window root = DefaultRootWindow(dpy);
+	Atom ret_type;
+	int ret_format;
+	unsigned long ret_items;
+	unsigned long left_items;
+	unsigned char *prop_data;
+	
+	if(xa_xmsm_cfg == None) return False;
+	
+	XGetWindowProperty(dpy, root, xa_xmsm_cfg, 0, sizeof(unsigned long),
+			False, XA_INTEGER, &ret_type, &ret_format, &ret_items,
+			&left_items, &prop_data);
+	if(ret_items) {
+		*flags = *prop_data;
+		XFree(prop_data);
+		return True;
 	}
 	return False;
 }

@@ -3,9 +3,10 @@
 *windowManager: PREFIX/bin/emwm
 *launcher: PREFIX/bin/xmtoolbox
 
-*enableLocking: True
-*blankOnLock: True
 *enableShade: True
+*enableLocking: True
+*enableSuspend: True
+*blankOnLock: True
 
 *blankTimeout: 400
 *lockTimeout: 600
