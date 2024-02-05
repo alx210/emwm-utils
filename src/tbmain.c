@@ -872,19 +872,19 @@ static Boolean message_dialog(Boolean confirm, const char *message_str)
 	xm_message_str=XmStringCreateLocalized((char*)message_str);
 	xm_title=XmStringCreateLocalized(APP_TITLE);
 
-	n=0;
+	wdlg = XmCreateMessageDialog(wshell, "messageDialog", NULL, 0);
+	
+	n = 0;
 	XtSetArg(args[n],XmNdialogTitle,xm_title); n++;
 	XtSetArg(args[n],XmNokCallback,callback); n++;
 	XtSetArg(args[n],XmNcancelCallback,callback); n++;
-
 	XtSetArg(args[n],XmNdialogType,
 		confirm?XmDIALOG_QUESTION:XmDIALOG_INFORMATION); n++;
 	XtSetArg(args[n],XmNdefaultButtonType,
 		confirm?XmDIALOG_CANCEL_BUTTON:XmDIALOG_OK_BUTTON); n++;
 	XtSetArg(args[n],XmNmessageString,xm_message_str); n++;
-
-
-	wdlg = XmCreateMessageDialog(wshell,"messageDialog",args,n);
+	
+	XtSetValues(wdlg, args, n);
 
 	XmStringFree(xm_title);
 	XmStringFree(xm_message_str);
