@@ -14,6 +14,10 @@ BUILDING AND INSTALLING
 =======================
 X11 and Motif libraries and headers are required to build all utilities.
 
+To modify installation prefix and other options, edit the target platform
+specific makefile in the "mf" subdirectory (The target platform name is picked
+from uname(1)).
+
 Run 'make' in the top-level directory of the source distribution.
 After the build process finishes, run 'make install' as root.
 
