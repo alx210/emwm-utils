@@ -33,16 +33,16 @@ XmToolbox.ad: XmToolbox.ad.src
 .PHONY: clean install common_install
 
 common_install:
-	install -m775 xmsession $(PREFIX)/bin/xmsession
-	install -m775 xmtoolbox $(PREFIX)/bin/xmtoolbox
-	install -m4775 xmsm $(PREFIX)/bin/xmsm
-	install -m775 -d $(MANDIR)/man1
-	install -m664 xmtoolbox.1 $(MANDIR)/man1/xmtoolbox.1
-	install -m664 xmsm.1 $(MANDIR)/man1/xmsm.1
-	install -m775 -d $(APPLRESDIR)
-	install -m664 XmSm.ad $(APPLRESDIR)/XmSm
-	install -m664 XmToolbox.ad $(APPLRESDIR)/XmToolbox
-	install -m664 toolboxrc $(RCDIR)/toolboxrc
+	install -m755 xmsession $(PREFIX)/bin/xmsession
+	install -m755 xmtoolbox $(PREFIX)/bin/xmtoolbox
+	install -m4755 xmsm $(PREFIX)/bin/xmsm
+	install -m755 -d $(MANDIR)/man1
+	install -m644 xmtoolbox.1 $(MANDIR)/man1/xmtoolbox.1
+	install -m644 xmsm.1 $(MANDIR)/man1/xmsm.1
+	install -m755 -d $(APPLRESDIR)
+	install -m644 XmSm.ad $(APPLRESDIR)/XmSm
+	install -m644 XmToolbox.ad $(APPLRESDIR)/XmToolbox
+	install -m644 toolboxrc $(RCDIR)/toolboxrc
 
 uninstall:
 	rm -f $(PREFIX)/bin/xmsm
