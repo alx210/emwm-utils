@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2024 alx@fastestcode.org
+ * Copyright (C) 2018-2025 alx@fastestcode.org
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -93,7 +93,7 @@ static void set_root_background(void);
 static void set_numlock_state(void);
 static int local_x_err_handler(Display*,XErrorEvent*);
 static void xt_sigusr1_handler(XtPointer,XtSignalId*);
-static void msg_property_handler(Widget, XtPointer, XEvent*, Boolean*);
+static void cmd_event_handler(XClientMessageEvent*);
 static void set_config_info(void);
 static void exit_session_dialog(void);
 static void error_dialog(void);
@@ -315,8 +315,6 @@ int main(int argc, char **argv)
 	process_sessionetc();
 
 	xt_sigusr1 = XtAppAddSignal(app_context,xt_sigusr1_handler,NULL);
-	XtAddEventHandler(wshell, PropertyChangeMask, False,
-		msg_property_handler, NULL);
 
 	xa_MOTIF_WM_OFFSET =
 		XInternAtom(XtDisplay(wshell), _XA_MOTIF_WM_OFFSET, False);
@@ -354,6 +352,9 @@ int main(int argc, char **argv)
 			(xrandr_base_evt + RRScreenChangeNotify)) {
 			XRRUpdateConfiguration(&evt);
 			reconfigure_widgets((XRRScreenChangeNotifyEvent*)&evt);
+		} else if(evt.type == ClientMessage &&
+			evt.xclient.message_type == xa_cmd) {
+			cmd_event_handler(&evt.xclient);
 		}
 		XtDispatchEvent(&evt);
 	}
@@ -1549,30 +1550,21 @@ static void exit_session_dialog(void)
 }
 
 /*
- * IPC command property notification handler
+ * IPC command notification handler
  */
-static void msg_property_handler(Widget w,
-	XtPointer ptr, XEvent *evt, Boolean *cont)
+static void cmd_event_handler(XClientMessageEvent *evt)
 {
-	XPropertyEvent *pev = (XPropertyEvent*)evt;
-	XTextProperty prop;
-
-	if(pev->state != PropertyNewValue || pev->atom != xa_cmd) return;
-
-	XGetTextProperty(XtDisplay(wshell), XtWindow(wshell), &prop, xa_cmd);
-
-	if(prop.encoding != XA_STRING || prop.value == NULL) {
-		log_msg("Invalid command received\n");
-		return;
-	}
-
+	char cmd[XMSM_CMDLEN_MAX + 1] = { '\0' };
+	
+	strncpy(cmd, evt->data.b, XMSM_CMDLEN_MAX);
+	
 	#ifdef DEBUG_CMD
 	log_msg("Received \"%s\" command\n", (char*)prop.value);
 	#endif
 
-	if(!strcmp((char*)prop.value, XMSM_LOGOUT_CMD)) {
+	if(!strcmp(cmd, XMSM_LOGOUT_CMD)) {
 		exit_session_dialog();
-	} else if(!strcmp((char*)prop.value, XMSM_LOCK_CMD)) {
+	} else if(!strcmp(cmd, XMSM_LOCK_CMD)) {
 		if(app_res.enable_locking){
 			lock_screen();
 			if(app_res.blank_on_lock)
@@ -1582,7 +1574,7 @@ static void msg_property_handler(Widget w,
 			log_msg("Can't lock. Locking is disabled\n");
 			error_dialog();
 		}
-	} else if(!strcmp((char*)prop.value, XMSM_SUSPEND_CMD)) {
+	} else if(!strcmp(cmd, XMSM_SUSPEND_CMD)) {
 		if(app_res.lock_on_suspend) {
 			if(app_res.enable_locking)
 				lock_screen();
@@ -1597,7 +1589,6 @@ static void msg_property_handler(Widget w,
 		}
 	}
 	
-	XtFree((char*)prop.value);
 	XFlush(XtDisplay(wshell));
 }
 

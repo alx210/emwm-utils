@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2024 alx@fastestcode.org
+ * Copyright (C) 2018-2025 alx@fastestcode.org
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -158,6 +158,7 @@ XtSignalId xt_sigusr1;
 KeyCode hotkey_code=0;
 unsigned int hotkey_mods=0;
 unsigned long xmsm_cfg = 0;
+Boolean sm_reqstat;
 
 int main(int argc, char **argv)
 {
@@ -1058,33 +1059,42 @@ static Boolean send_xmsm_cmd(const char *command)
 	unsigned long ret_items;
 	unsigned long left_items;
 	unsigned char *prop_data;
-	XTextProperty text_prop = {
-		(unsigned char*)command, XA_STRING, 8, strlen(command)
-	};
 	
 	if(xa_xmsm_mgr == None || xa_xmsm_pid == None) return False;
 	
-	XGetWindowProperty(dpy,root,xa_xmsm_mgr,0,sizeof(Window),False,XA_WINDOW,
-		&ret_type,&ret_format,&ret_items,&left_items,&prop_data);
+	XGetWindowProperty(dpy, root, xa_xmsm_mgr, 0, sizeof(Window),
+		False, XA_WINDOW, &ret_type, &ret_format, &ret_items,
+		&left_items, &prop_data);
 	
 	if(ret_type == XA_WINDOW){
 		shell = *((Window*)prop_data);
 		XFree(prop_data);
 
 		def_x_err_handler = XSetErrorHandler(local_x_err_handler);
+		sm_reqstat = True;
 		
 		XGetWindowProperty(dpy, shell, xa_xmsm_pid, 0, sizeof(pid_t),
 			False, XA_INTEGER, &ret_type, &ret_format,
 			&ret_items, &left_items, &prop_data);
 		if(ret_items) XFree(prop_data);
 
-		if(ret_type == XA_INTEGER){
-			XSetTextProperty(dpy, shell, &text_prop, xa_xmsm_cmd);
+		if(ret_type == XA_INTEGER) {
+			XClientMessageEvent evt = {
+				.type = ClientMessage,
+				.serial = 0,
+				.send_event = True,
+				.display = dpy,
+				.window = None,
+				.message_type = xa_xmsm_cmd,
+				.format = 8
+			};
+
+			memcpy(evt.data.b, command, strlen(command) + 1);
+			XSendEvent(dpy, shell, True, 0, (XEvent*)&evt);
+
 			XSync(dpy, False);
-			
 			XSetErrorHandler(def_x_err_handler);
-			
-			return True;
+			return sm_reqstat;
 		}
 		XSync(dpy, False);
 		XSetErrorHandler(def_x_err_handler);
@@ -1125,7 +1135,10 @@ static Boolean get_xmsm_config(unsigned long *flags)
  */
 static int local_x_err_handler(Display *dpy, XErrorEvent *evt)
 {
-	if(evt->error_code == BadWindow) return 0;
+	if(evt->error_code == BadWindow) {
+		sm_reqstat = False;
+		return 0;
+	}
 	return def_x_err_handler(dpy,evt);
 }
 
