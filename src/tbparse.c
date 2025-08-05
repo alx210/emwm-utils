@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 alx@fastestcode.org
+ * Copyright (C) 2018-2025 alx@fastestcode.org
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -42,10 +42,9 @@ static int parse_buffer(void);
 #define MAX_PARSE_ERROR	256
 static char parse_error[MAX_PARSE_ERROR];
 
-static char *buffer=NULL;
-static char *buf_ptr=NULL;
-size_t buf_size=0;
-struct tb_entry *entries=NULL;
+static char *buffer = NULL;
+static char *buf_ptr = NULL;
+struct tb_entry *entries = NULL;
 
 /* Get next line from global buffer */
 static char* get_line(void)
@@ -112,19 +111,20 @@ static void set_parse_error(int line, const char *text)
 /* Duplicates the given entry and adds it to the global list */
 static struct tb_entry* add_entry(const struct tb_entry *ent)
 {
-	static struct tb_entry *last;
 	struct tb_entry *new;
 
-	new=malloc(sizeof(struct tb_entry));
+	new = malloc(sizeof(struct tb_entry));
 	if(!new) return NULL;
-	memcpy(new,ent,sizeof(struct tb_entry));
+	memcpy(new, ent, sizeof(struct tb_entry));
 	
 	if(!entries){
-		entries=new;
-		last=new;
-	}else{
-		last->next=new;
-		last=new;
+		entries = new;
+		new->next = NULL;
+	} else {
+		struct tb_entry *last = entries;
+		while(last->next) last = last->next;
+		
+		last->next = new;
 	}
 	return new;
 }
@@ -189,58 +189,65 @@ static int parse_buffer(void)
  * Parses a toolbox menu file.
  * Returns zero on success or errno otherwise.
  * If EINVAL is returned, the file contains syntax errors, and
- * TbParseErrorString() may be used to obtain detailed information.
+ * tb_parser_error_string() may be used to obtain detailed information.
  */
 int tb_parse_config(const char *filename, struct tb_entry **ent_root)
 {
 	FILE *file;
 	struct stat st;
 	int err;
+	char *old_buf = buffer;
+	struct tb_entry *old_ent = entries;
 	
+	entries = NULL;
 	parse_error[0]='\0';
 	
-	if(stat(filename,&st)<0) return errno;
-	if(st.st_size == 0) return 0;
+	if(stat(filename, &st) < 0) return errno;
+	if(st.st_size == 0) return EIO;
 	
-	if(entries){
-		struct tb_entry *tmp, *cur=entries;
-		while(cur){
-			tmp=cur;
-			cur=cur->next;
-			free(tmp);
-		}
-		entries=NULL;
+	if(!(buffer = malloc(st.st_size + 1))) {
+		buffer = old_buf;
+		return errno;
 	}
+
+	buf_ptr = buffer;
 	
-	if(buf_size < st.st_size){
-		char *p;
-		if(!(p=realloc(buffer,st.st_size+1))) return errno;
-		buffer=p;
-	}
-	buf_ptr=buffer;
-	
-	file=fopen(filename,"r");
+	file = fopen(filename, "r");
 	if(!file){
-		err=errno;
+		err = errno;
 		free(buffer);
+		buffer = old_buf;
 		return err;
 	}
 
-	if(fread(buffer,1,st.st_size,file)<st.st_size){
-		err=errno;
+	if(fread(buffer, 1, st.st_size, file) < st.st_size){
+		err = errno;
 		free(buffer);
 		fclose(file);
+		buffer = old_buf;
 		return err;
 	}
 	fclose(file);
 		
-	buffer[st.st_size]='\0';
+	buffer[st.st_size] = '\0';
 
-	if((err=parse_buffer())){
+	if((err = parse_buffer())){
+		free(buffer);
+		buffer = old_buf;
 		return err;
 	}
 
-	*ent_root=entries;
+	if(old_ent){
+		struct tb_entry *tmp, *cur = old_ent;
+		while(cur){
+			tmp = cur;
+			cur = cur->next;
+			free(tmp);
+		}
+	}
+
+	*ent_root = entries;
+
 	return 0;
 }
 
