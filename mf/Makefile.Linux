@@ -6,7 +6,7 @@ APPLRESDIR = /etc/X11/app-defaults
 INCDIRS = -I/usr/local/include
 LIBDIRS = -L/usr/local/lib
 
-CFLAGS += -Wall -DPREFIX='"$(PREFIX)"' $(INCDIRS)
+CFLAGS = -O2 -Wall -DPREFIX='"$(PREFIX)"' $(INCDIRS)
 SYSLIBS = -lcrypt
 
 include common.mf

@@ -10,7 +10,7 @@ LIBDIRS = -L/usr/X11R7/lib -L/usr/pkg/lib
 LDFLAGS = -Wl,-R/usr/X11R7/lib,-R/usr/pkg/lib
 SYSLIBS = -lcrypt
 
-CFLAGS += -Wall -DPREFIX='"$(PREFIX)"' $(INCDIRS)
+CFLAGS = -O2 -Wall -DPREFIX='"$(PREFIX)"' $(INCDIRS)
 
 .include "common.mf"
 
