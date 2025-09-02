@@ -22,7 +22,7 @@ xmsm: $(xmsm_objs) $(common_objs)
 
 xmsession: xmsession.src
 	sed s%PREFIX%$(PREFIX)%g xmsession.src > $@
-	chmod 775 $@
+	chmod 755 $@
 
 XmSm.ad: XmSm.ad.src
 	sed s%PREFIX%$(PREFIX)%g XmSm.ad.src > $@
