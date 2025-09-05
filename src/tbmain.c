@@ -173,9 +173,21 @@ int main(int argc, char **argv)
 	XtToolkitInitialize();
 	
 	wshell=XtVaAppInitialize(&app_context, "XmToolbox",
-		xrdb_options,XtNumber(xrdb_options), &argc,argv, fallback_res,
+		xrdb_options, XtNumber(xrdb_options), &argc,argv, fallback_res,
 		XmNiconName, APP_TITLE, XmNallowShellResize, True,
 		XmNmwmFunctions, MWM_FUNC_MOVE|MWM_FUNC_MINIMIZE, NULL);
+
+	if(argc > 1) {
+		int i;
+		
+		for(i = 1; i < argc; i++) {
+			if(!strcmp("-version", argv[i])) {
+				print_version(APP_NAME);
+				XtDestroyApplicationContext(app_context);
+				return 0;
+			}
+		}
+	}
 	
 	XtGetApplicationResources(wshell,&app_res,xrdb_resources,
 		XtNumber(xrdb_resources),NULL,0);

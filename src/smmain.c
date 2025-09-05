@@ -256,14 +256,26 @@ int main(int argc, char **argv)
 	XtSetLanguageProc(NULL,NULL,NULL);
 	XtToolkitInitialize();
 
-	wshell=XtVaAppInitialize(&app_context,
-		APP_TITLE,NULL,0,
-		&argc,argv,NULL,
-		XmNiconName,APP_TITLE,
-		XmNmwmFunctions,0,
-		XmNmwmDecorations,0,
-		XmNmappedWhenManaged,False,
-		XmNoverrideRedirect,True,NULL);
+	wshell = XtVaAppInitialize(&app_context,
+		APP_TITLE, NULL, 0,
+		&argc, argv, NULL,
+		XmNiconName, APP_TITLE,
+		XmNmwmFunctions, 0,
+		XmNmwmDecorations, 0,
+		XmNmappedWhenManaged, False,
+		XmNoverrideRedirect, True, NULL);
+
+	if(argc > 1) {
+		int i;
+		
+		for(i = 1; i < argc; i++) {
+			if(!strcmp("-version", argv[i])) {
+				print_version(APP_NAME);
+				XtDestroyApplicationContext(app_context);
+				return 0;
+			}
+		}
+	}
 
 	XtGetApplicationResources(wshell,&app_res,xrdb_resources,
 		XtNumber(xrdb_resources),NULL,0);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 alx@fastestcode.org
+ * Copyright (C) 2023-2025 alx@fastestcode.org
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,6 +23,10 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+#define VER_MAJOR 1
+#define VER_MINOR 3
+#define VER_UPLVL 1
+
 /* Reliable signal handling (using POSIX sigaction) */
 typedef void (*sigfunc_t)(int);
 sigfunc_t rsignal(int sig, sigfunc_t);
@@ -35,5 +39,7 @@ sigfunc_t rsignal(int sig, sigfunc_t);
 int expand_env_vars(const char *in, char **out);
 
 char* get_login(void);
+
+void print_version(const char*);
 
 #endif /* COMMON_H */

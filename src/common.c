@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 alx@fastestcode.org
+ * Copyright (C) 2023-2025 alx@fastestcode.org
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -211,4 +211,9 @@ char* get_login(void)
 		if(pwd) login = strdup(pwd->pw_name);
 	}
 	return login;
+}
+
+void print_version(const char *name)
+{
+	printf("%s %d.%d.%d\n", name, VER_MAJOR, VER_MINOR, VER_UPLVL);
 }
