@@ -343,7 +343,7 @@ int main(int argc, char **argv)
 			if(!scr_locked && lock_timer == None &&
 				xsse->state == ScreenSaverOn &&	app_res.lock_timeout){
 				lock_timer = XtAppAddTimeOut(app_context,
-					app_res.lock_timeout,lock_timeout_cb,NULL);
+					app_res.lock_timeout * 1000, lock_timeout_cb,NULL);
 			}else if(xsse->state == ScreenSaverOff){
 				if(lock_timer) XtRemoveTimeOut(lock_timer);
 				lock_timer = None;
@@ -412,6 +412,8 @@ static void lock_screen(void)
 	char *login;
 	struct passwd *passwd;
 	
+	if(scr_locked) return;
+	
 	/* make sure we can authenticate before locking */
 	login = get_login();
 	if(!login) {
@@ -466,6 +468,8 @@ static void lock_screen(void)
  */
 static void unlock_screen(void)
 {
+	if(!scr_locked) return;
+	
 	assert(covers_up);
 
 	if(ptr_grabbed){
@@ -491,6 +495,8 @@ static void unlock_screen(void)
 	}
 	
 	XFlush(XtDisplay(wshell));
+	
+	scr_locked = False;
 }
 
 /*
