@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2025 alx@fastestcode.org
+ * Copyright (C) 2018-2026 alx@fastestcode.org
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -89,7 +89,7 @@ static void covers_up_cb(Widget,XtPointer,XEvent*,Boolean*);
 static void register_screen_saver(void);
 static int launch_process(const char*);
 static void process_sessionetc(void);
-static void set_root_background(void);
+static void set_root_cursor(void);
 static void set_numlock_state(void);
 static int local_x_err_handler(Display*,XErrorEvent*);
 static void xt_sigusr1_handler(XtPointer,XtSignalId*);
@@ -109,8 +109,6 @@ struct session_res {
 	Boolean enable_shade;
 	Boolean blank_on_lock;
 	char *numlock_state;
-	char *wkspace_bg_image;
-	Pixel wkspace_bg_pixel;
 	char *lock_bg_image;
 	Pixel lock_bg_pixel;
 	char *window_manager;
@@ -147,14 +145,6 @@ XtResource xrdb_resources[]={
 	},
 	{ "numLockState","NumLockState",XmRString,sizeof(String),
 		RES_FIELD(numlock_state),XmRImmediate,(XtPointer)"on"
-	},
-	{ "workspaceBackgroundImage","WorkspaceBackgroundImage",
-		XmRString,sizeof(String),
-		RES_FIELD(wkspace_bg_image),XmRImmediate,(XtPointer)NULL
-	},
-	{ "workspaceBackgroundColor","WorkspaceBackgroundColor",
-		XmRPixel,sizeof(Pixel),RES_FIELD(wkspace_bg_pixel),
-		XmRString, (XtPointer)"#4C719E"
 	},
 	{ "lockBackgroundImage","LockBackgroundImage",
 		XmRString,sizeof(String),
@@ -297,7 +287,7 @@ int main(int argc, char **argv)
 	}
 
 	init_session();
-	set_root_background();
+	set_root_cursor();
 	set_numlock_state();
 	set_config_info();
 	
@@ -1184,48 +1174,20 @@ static void process_sessionetc(void)
 }
 
 /*
- * Sets the root cursor, background color and, if specified,
- * image on all screens.
+ * Sets the root window cursor on all screens to left_ptr.
  */
-static void set_root_background(void)
+static void set_root_cursor(void)
 {
 	Cursor cursor;
-	XColor bg_color;
 	int nscreens, i;
 	Display *dpy = XtDisplay(wshell);
 
-	cursor = XCreateFontCursor(dpy,XC_left_ptr);
-	bg_color.pixel = app_res.wkspace_bg_pixel;
-	XQueryColor(dpy,DefaultColormap(dpy,DefaultScreen(dpy)),&bg_color);
-	
+	cursor = XCreateFontCursor(dpy, XC_left_ptr);
 	nscreens = XScreenCount(dpy);
 	
 	for(i=0; i<nscreens; i++){
 		XDefineCursor(dpy,RootWindow(dpy,i),cursor);
-		XAllocColor(dpy,DefaultColormap(dpy,i),&bg_color);
-		XSetWindowBackground(dpy,RootWindow(dpy,i),bg_color.pixel);
-		
-		if(app_res.wkspace_bg_image){
-			Pixel shadow, fnord;
-			Pixmap pm;
-
-			XmGetColors(ScreenOfDisplay(dpy,i),DefaultColormap(dpy,i),
-				bg_color.pixel,&fnord,&fnord,&shadow,&fnord);
-	
-			pm = XmGetPixmap(ScreenOfDisplay(dpy,i),
-				app_res.wkspace_bg_image,
-				shadow,bg_color.pixel);
-
-			if(pm == XmUNSPECIFIED_PIXMAP){
-				log_msg("Failed to load \'%s\'\n",app_res.wkspace_bg_image);
-				app_res.wkspace_bg_image = NULL;
-			} else {
-				XSetWindowBackgroundPixmap(dpy,RootWindow(dpy,i),pm);
-			}
-		}
-		XClearWindow(dpy,RootWindow(dpy,i));
 	}
-	XFlush(dpy);
 }
 
 /*
@@ -1562,9 +1524,6 @@ static void exit_session_dialog(void)
 		DefaultRootWindow(XtDisplay(wshell)),xa_mgr);
 	
 	for(i = 0; i < nscreens; i++) {
-		Window root_wnd = RootWindow(dpy, i);
-		XSetWindowBackground(dpy, root_wnd,	BlackPixel(dpy, i));
-		XSetWindowBackgroundPixmap(dpy, root_wnd, None);
 		if(app_res.enable_shade) {
 			XtUnmapWidget(wshades[i]);
 			XtVaSetValues(wshades[i], XmNbackgroundPixmap,

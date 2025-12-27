@@ -15,9 +15,7 @@
 
 *numLockState: KEEP
 
-*workspaceBackgroundColor: #516286
 *lockBackgroundColor: #516286
-! *workspaceBackgroundImage: 25_foreground
 ! *lockBackgroundImage: 50_foreground
 
 *showShutdown: True

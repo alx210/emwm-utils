@@ -1,4 +1,4 @@
-.\" Copyright (C) 2018-2024 alx@fastestcode.org
+.\" Copyright (C) 2018-2026 alx@fastestcode.org
 .\"  
 .\" Permission is hereby granted, free of charge, to any person obtaining a
 .\" copy of this software and associated documentation files (the "Software"),
@@ -30,21 +30,21 @@ xdm \-session xmsession
 XmSm is a Motif based session manager for EMWM. In provides screen locking,
 workspace configuration settings and shutdown options\. It is also responsible
 for starting the window manager (emwm), the application launcher (xmtoolbox)
-and other, user defined applications\.
+and other, user defined applications.
 .SH USAGE
 XmSm is normally started by the accompanying xmsession initialization
 script that sets up the environment, redirects stdout and stderr to
-~/.xmsession\.log, loads ~/\.Xresources and sources ~/\.Xprofile before running
-the session manager\.
+~/.xmsession.log, loads ~/.Xresources and sources ~/.Xprofile before running
+the session manager.
 .PP
 The xmsession script itself should be invoked either by a display/login manager
 like xdm, or the xinit utility.
 .PP
-~/.Xprofile is the startup file for X sessions and analogous to the ~/\.profile
-file where user specific environment variables may be set\.
+~/.Xprofile is the startup file for X sessions and analogous to the ~/.profile
+file where user specific environment variables may be set.
 .PP
  ~/.sessionetc is a shell script that is processed in a separate shell,
-and may be used to start user\-specific programs\.
+and may be used to start user\-specific programs.
 .SH OPTIONS
 .TP
 \fB\-version\fP
@@ -58,40 +58,40 @@ screen lock is user engaged. Default is \fBTrue\fp\.
 \fBblankTimeout\fP \fISeconds\fP
 Period of inactivity after which X screen saver is activated in
 blanking mode. Set to 0 to disable blanking. 
-Default is 480 seconds\. See also: \fBlockTimeout\fP\.
+Default is 480 seconds\. See also: \fBlockTimeout\fP.
 .TP
 \fBenableLocking\fP \fIBoolean\fP
-Enable screen locking capability\.
-This affects \fBlockTimeout\fP and the \fISession\fP sub-menu in xmtoolbox(1)\.
-Default is \fBTrue\fp\.
+Enable screen locking capability.
+This affects \fBlockTimeout\fP and the \fISession\fP sub-menu in xmtoolbox(1).
+Default is \fBTrue\fp.
 .TP
 \fBenableShade\fP \fIBoolean\fP
-Enable shading of workspace contents when the Logout dialog is displayed\.
+Enable shading of workspace contents when the Logout dialog is displayed.
 Default is \fBTrue\fp\.
 .TP
 \fBenableSuspend\fP \fIBoolean\fP
 If True, enables the \fISuspend\fP command.
-This affects the \fISession\fP sub-menu in xmtoolbox(1)\.
+This affects the \fISession\fP sub-menu in xmtoolbox(1).
 Default is \fITrue\fP\.
 .TP
 \fBlauncher\fP \fIString\fP
-Full path to the Launcher executable name\.
+Full path to the Launcher executable name.
 Default is (installation prefix)/xmtoolbox
 .TP
 \fBlockBackgroundColor\fP \fIColor\fP
-Background color of the screen lock\.
+Background color of the screen lock.
 .TP
 \fBlockBackgroundImage\fP \fIFile Name\fP
-An image to be used as a tiled background on the lock screen\.
-Also see the \fBIMAGE FILES\fP section\.
+An image to be used as a tiled background on the lock screen.
+Also see the \fBIMAGE FILES\fP section.
 .TP
 \fBlockTimeout\fP \fISeconds\fP
-Period of inactivity after which screen lock is engaged\.
-Set to 0 to disable timed locking\.
-Default is 600 seconds\. See also: \fBblankTimeout\fP, fBenableLocking\fP\.
+Period of inactivity after which screen lock is engaged.
+Set to 0 to disable timed locking.
+Default is 600 seconds\. See also: \fBblankTimeout\fP, fBenableLocking\fP.
 .TP
 \fBlockOnSuspend\fP \fIBoolean\fP
-If True, locks the screen before executing the suspend command\.
+If True, locks the screen before executing the suspend command.
 Default is \fIFalse\fP\.
 .TP
 \fBnumLockState\fP ON|OFF|KEEP
@@ -99,58 +99,49 @@ Set the keyboard NumLock state\. Default is \fBKEEP\fP.
 .TP
 \fBunlockScreenTimeout\fP \fISeconds\fP
 Period on inactivity after which the password input dialog on the lock
-screen is hidden. It appears again as soon as user activity is detected\.
+screen is hidden. It appears again as soon as user activity is detected.
 .TP
 \fBprimaryXineramaScreen\fP \fIInteger\fP
-Index of a xinerama screen to be used for input and message dialogs\.
+Index of a xinerama screen to be used for input and message dialogs.
 .TP
 \fBshowShutdown\fP \fIBoolean\fP
-Show the Shutdown option in the exit options dialog. Default is \fBTrue\fP\.
+Show the Shutdown option in the exit options dialog. Default is \fBTrue\fP.
 .TP
 \fBshowReboot\fP \fIBoolean\fP
-Show the Reboot option in the exit options dialog. Default is \fBTrue\fP\.
+Show the Reboot option in the exit options dialog. Default is \fBTrue\fP.
 .TP
 \fBsilent\fP \fIBoolean\fP
-If set to True, xmsm wont give any audible feedback. Default is False\.
-.TP
-\fBworkspaceBackgroundColor\fP \fIColor\fP
-Background color of the root window\.
-.TP
-\fBworkspaceBackgroundImage\fP \fIFile Name\fP
-An image to be used as tiled background on the root window\.
-Also see the \fBIMAGE FILES\fP section\.
-.TP
+If set to True, xmsm wont give any audible feedback. Default is False.
 \fBwindowManager\fP \fIString\fP
-Full path to the window manager executable name\.
+Full path to the window manager executable name.
 Default is (installation prefix)/emwm
 .SH IMAGE FILE FORMATS
-Any image file formats supported by the Motif widget toolkit may be specified\.
-At the time of writing these include X pixmap/bitmap, PNG and JPEG images\.
+Any image file formats supported by the Motif widget toolkit may be specified.
+At the time of writing these include X pixmap/bitmap, PNG and JPEG images.
 .PP
 X Bitmaps are drawn by coloring white bits in the specified background color
-(workspace/lockBackgroundColor resources) and black bits in a darker shade
-of that color\.
+and black bits in a darker shade of that color.
 .SH FILES
 .nf
-~/\.sessionetc
-~/\.xmsession\.log
-~/\.Xprofile
-~/\.Xresources
+~/.sessionetc
+~/.xmsession.log
+~/.Xprofile
+~/.Xresources
 .fi
 .SH SIGNALS
 .PP
-xmsm responds to SIGUSR1 by engaging screen lock\.
+xmsm responds to SIGUSR1 by engaging screen lock.
 .SH CAVEATS
 The xmsm binary must be setuid root for screen locking and shutdown/reboot
 functionality, it discards root privileges at startup and restores them only
-during password check and when executing system commands\.
+during password check and when executing system commands.
 .PP
 XmSm does not implement the ICCCM session save/restore protocol.
 .PP
 The X screen saver extension is used for timed locking and blanking,
-but there are no graphical screensavers provided by XmSm\.
+but there are no graphical screensavers provided by XmSm.
 .SH SEE ALSO
 emwm(1) xmtoolbox(1)
 .SH AUTHORS
 .PP
-XmSm was written and is maintained by alx@fastestcode\.org
+XmSm was written and is maintained by alx@fastestcode.org
