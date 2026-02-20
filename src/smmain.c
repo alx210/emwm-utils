@@ -411,8 +411,10 @@ static void reconfigure_widgets(XRRScreenChangeNotifyEvent *evt)
 		(yoff + (sheight - height) / 2));
 	XtSetValues(w, args, n);
 	
-	if(app_res.enable_shade)
-		XtResizeWidget(wshades[evt_scrn], evt->width, evt->height, 0);
+	if(app_res.enable_shade) {
+		XtConfigureWidget(wshades[evt_scrn],
+			0, 0, evt->width, evt->height, 0);
+	}
 }
 
 /*
@@ -542,7 +544,10 @@ static void show_covers(Boolean show)
 	int i,ncovers = XScreenCount(XtDisplay(wshell));
 
 	if(show && !covers_up){
-		for(i=0; i<ncovers; i++) XtMapWidget(wcovers[i]);
+		for(i=0; i<ncovers; i++) {
+			XtMapWidget(wcovers[i]);
+			XRaiseWindow(XtDisplay(wshell), XtWindow(wcovers[i]));
+		}
 		covers_up = True;
 	}else if(!show && covers_up){
 		for(i=0; i<ncovers; i++) XtUnmapWidget(wcovers[i]);	
@@ -663,6 +668,7 @@ static void create_locking_widgets(void)
 		
 		XtSetArg(args[n],XmNmwmDecorations,0); n++;
 		XtSetArg(args[n],XmNmwmFunctions,0); n++;
+		XtSetArg(args[n],XmNoverrideRedirect, True); n++;
 		XtSetArg(args[n],XmNx,0); n++;
 		XtSetArg(args[n],XmNy,0); n++;
 		XtSetArg(args[n],XmNwidth,DisplayWidth(dpy,i)); n++;
@@ -786,6 +792,7 @@ static void create_shade_widgets(void)
 
 		XtSetArg(args[n], XmNmwmDecorations, 0); n++;
 		XtSetArg(args[n], XmNmwmFunctions, 0); n++;
+		XtSetArg(args[n], XmNoverrideRedirect, True); n++;
 		XtSetArg(args[n], XmNx, 0); n++;
 		XtSetArg(args[n], XmNy, 0); n++;
 		XtSetArg(args[n], XmNwidth, DisplayWidth(dpy,i)); n++;
@@ -1514,7 +1521,9 @@ static void exit_session_dialog(void)
 			XFreePixmap(dpy, pm);
 			XFreeGC(dpy, gc);
 			
+			XtConfigureWidget(wshades[i], 0, 0, dpy_width, dpy_height, 0);
 			XtMapWidget(wshades[i]);
+			XRaiseWindow(dpy, XtWindow(wshades[i]));
 			XFlush(dpy);
 		}
 	}

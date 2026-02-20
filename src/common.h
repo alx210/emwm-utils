@@ -25,7 +25,7 @@
 
 #define VER_MAJOR 1
 #define VER_MINOR 3
-#define VER_UPLVL 1
+#define VER_UPLVL 2
 
 /* Reliable signal handling (using POSIX sigaction) */
 typedef void (*sigfunc_t)(int);
