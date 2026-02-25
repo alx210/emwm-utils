@@ -49,16 +49,16 @@ struct tb_entry *entries = NULL;
 /* Get next line from global buffer */
 static char* get_line(void)
 {
-	char *p, *cur=buf_ptr;
+	char *p, *cur = buf_ptr;
 	
 	if(*buf_ptr == '\0') return NULL;
 	
-	p=strchr(buf_ptr,'\n');
+	p = strchr(buf_ptr,'\n');
 	
 	if(p){
-		buf_ptr = p+1;
+		buf_ptr = p + 1;
 		*p = '\0';
-	}else{
+	} else {
 		while(*buf_ptr != '\0') buf_ptr++;
 	}
 	return cur;
@@ -73,34 +73,89 @@ static char* skip_blanks(char *p)
 /* Parses a line into the given entry structure */
 static void parse_line(char *line, struct tb_entry *e)
 {
-	char *p=line;
+	char *p = line;
 	
-	memset(e,0,sizeof(struct tb_entry));
+	memset(e, 0, sizeof(struct tb_entry));
 	
 	if(!strcmp(line,"SEPARATOR")){
 		e->type=TBE_SEPARATOR;
 		return;	
 	}
 	
-	e->title=line;
+	e->title = line;
 	
 	while(*p != '\0'){
 		if(*p == '\\' && (p[1] == '\\' || p[1] == '&' || p[1] == ':')){
-			memmove(p,p+1,strlen(p+1)+1);
-		}else if(*p == '&'){
-			e->mnemonic=p[1];
-			memmove(p,p+1,strlen(p+1)+1);
-		}else if(*p == ':'){
-			e->command=skip_blanks(p+1);
-			*p='\0';
+			memmove(p, p + 1, strlen(p + 1) + 1);
+		} else if(*p == '&') {
+			e->mnemonic = p[1];
+			memmove(p, p + 1,strlen(p + 1) + 1);
+		} else if(*p == ':') {
+			e->command = skip_blanks(p + 1);
+			*p = '\0';
 			break;
 		}
 		p++;
 	}
 	if(e->command)
-		e->type=TBE_COMMAND;
+		e->type = TBE_COMMAND;
 	else
-		e->type=TBE_CASCADE;
+		e->type = TBE_CASCADE;
+}
+
+/* Parses the global buffer */
+static int parse_buffer(void)
+{
+	char *line;
+	struct tb_entry tmp;
+	struct tb_entry *prev=NULL;
+	int nlevel = 0;
+	int iline = 0;
+	
+	while((line = get_line())){
+		iline++;
+		line = skip_blanks(line);
+		
+		if(*line == '\0' || *line == '#'){
+			continue;
+		}else if(*line == '{'){
+			if(!prev || prev->type != TBE_CASCADE){
+				set_parse_error(iline,
+					"Delimiter \'{\' must follow a cascade entry");
+				return -1;
+			}
+			nlevel++;
+			continue;
+		}else if(*line == '}'){
+			if(!nlevel || prev->type != TBE_COMMAND){
+				set_parse_error(iline,"Delimiter \'}\' out of scope");
+				return -1;
+			}
+			nlevel--;
+			continue;
+		}else if(prev && prev->type == TBE_CASCADE && prev->level == nlevel){
+			set_parse_error(iline,"Cascade entry must have a menu scope");
+			return -1;
+		}
+		
+		parse_line(line, &tmp);
+		if(tmp.type == TBE_COMMAND) {
+			if(nlevel < 1){
+				set_parse_error(iline,
+					"Command entries must reside within a menu scope");
+				return -1;
+			}
+			if(!strlen(tmp.command)) {
+				set_parse_error(iline,
+					"Command string expected after ':' ");
+				return -1;
+			}
+		}
+		
+		tmp.level = nlevel;
+		if((prev = add_entry(&tmp)) == NULL) return ENOMEM;
+	}
+	return 0;
 }
 
 static void set_parse_error(int line, const char *text)
@@ -128,62 +183,6 @@ static struct tb_entry* add_entry(const struct tb_entry *ent)
 	}
 	return new;
 }
-
-/* Parses the global buffer */
-static int parse_buffer(void)
-{
-	char *line;
-	struct tb_entry tmp;
-	struct tb_entry *prev=NULL;
-	int nlevel=0;
-	int iline=0;
-	
-	while((line = get_line())){
-		iline++;
-		line=skip_blanks(line);
-		
-		if(*line == '\0' || *line == '#'){
-			continue;
-		}else if(*line == '{'){
-			if(!prev || prev->type != TBE_CASCADE){
-				set_parse_error(iline,
-					"Delimiter \'{\' must follow a cascade entry");
-				return -1;
-			}
-			nlevel++;
-			continue;
-		}else if(*line == '}'){
-			if(!nlevel || prev->type != TBE_COMMAND){
-				set_parse_error(iline,"Delimiter \'}\' out of scope");
-				return -1;
-			}
-			nlevel--;
-			continue;
-		}else if(prev && prev->type == TBE_CASCADE && prev->level == nlevel){
-			set_parse_error(iline,"Cascade entry must have a menu scope");
-			return -1;
-		}
-		
-		parse_line(line,&tmp);
-		if(tmp.type == TBE_COMMAND) {
-			if(nlevel < 1){
-				set_parse_error(iline,
-					"Command entries must reside within a menu scope");
-				return -1;
-			}
-			if(!strlen(tmp.command)) {
-				set_parse_error(iline,
-					"Command string expected after ':' ");
-				return -1;
-			}
-		}
-		
-		tmp.level=nlevel;
-		if((prev=add_entry(&tmp))==NULL) return ENOMEM;
-	}
-	return 0;
-}
-
 
 /*
  * Parses a toolbox menu file.
@@ -253,5 +252,5 @@ int tb_parse_config(const char *filename, struct tb_entry **ent_root)
 
 char* tb_parser_error_string(void)
 {
-	return (parse_error[0]=='\0')?NULL:parse_error;
+	return (parse_error[0] == '\0') ? NULL : parse_error;
 }

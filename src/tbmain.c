@@ -51,13 +51,14 @@
 #include "tbparse.h"
 #include "common.h"
 #include "smglobal.h"
+#include "wswitch.h"
 
 /* Forward declarations */
 static char* find_rc_file(void);
 static Boolean construct_menu(void);
 static void create_utility_widgets(Widget);
 static void set_icon(Widget);
-static void setup_hotkeys(void);
+static Boolean setup_hotkeys(void);
 static int xgrabkey_err_handler(Display*,XErrorEvent*);
 static void handle_root_event(XEvent*);
 void raise_and_focus(Widget w);
@@ -65,12 +66,10 @@ static void time_update_cb(XtPointer,XtIntervalId*);
 static int exec_command(const char*);
 static void report_exec_error(const char*,const char*,int);
 static void report_rcfile_error(const char*,const char*);
-static char* get_user_input(Widget,const char*);
 static Boolean message_dialog(Boolean,const char*);
-static void wait_state(Boolean);
 static void exec_cb(Widget,XtPointer,XtPointer);
+static void exec_dialog_cb(Widget,XtPointer,XtPointer);
 static void menu_command_cb(Widget,XtPointer,XtPointer);
-static void user_input_cb(Widget,XtPointer,XtPointer);
 static void message_dialog_cb(Widget,XtPointer,XtPointer);
 static void sigchld_handler(int);
 static void sigusr_handler(int);
@@ -81,7 +80,9 @@ static void lock_cb(Widget,XtPointer,XtPointer);
 static Boolean send_xmsm_cmd(const char *command);
 static int local_x_err_handler(Display*,XErrorEvent*);
 static Boolean get_xmsm_config(unsigned long*);
-
+static void set_ws_presence(Widget);
+static Boolean get_ws_info(unsigned short*, unsigned short*);
+static void ws_change_cb(Widget,XtPointer,XtPointer);
 
 struct tb_resources {
 	char *title;
@@ -89,13 +90,14 @@ struct tb_resources {
 	char *date_time_fmt;
 	char *rc_file;
 	char *hotkey;
-	unsigned int rcfile_check_time;
 	Boolean horizontal;
 	Boolean separators;
+	Boolean switcher;
+	Boolean occupy_all;
 } app_res;
 
 #define RES_FIELD(f) XtOffsetOf(struct tb_resources,f)
-XtResource xrdb_resources[]={
+static XtResource xrdb_resources[]={
 	{ "title","Title",XmRString,sizeof(String),
 		RES_FIELD(title),XmRImmediate,(XtPointer)NULL
 	},
@@ -103,7 +105,7 @@ XtResource xrdb_resources[]={
 		RES_FIELD(show_date_time),XmRImmediate,(XtPointer)True
 	},
 	{ "dateTimeFormat","DateTimeFormat",XmRString,sizeof(String),
-		RES_FIELD(date_time_fmt),XmRImmediate,(XtPointer)"%D %l:%M %p"
+		RES_FIELD(date_time_fmt),XmRImmediate,(XtPointer)"%m/%d %l:%M %p"
 	},
 	{ "rcFile","RcFile",XmRString,sizeof(String),
 		RES_FIELD(rc_file),XmRImmediate,(XtPointer)NULL
@@ -116,7 +118,14 @@ XtResource xrdb_resources[]={
 	},
 	{ "separators","Separators",XmRBoolean,sizeof(Boolean),
 		RES_FIELD(separators),XmRImmediate,(XtPointer)True
+	},
+	{ "workspaceSwitcher","WorkspaceSwitcher",XmRBoolean,sizeof(Boolean),
+		RES_FIELD(switcher),XmRImmediate,(XtPointer)True
+	},
+	{ "occupyAllWorkspaces","OccupyAllWorkspaces",XmRBoolean,sizeof(Boolean),
+		RES_FIELD(occupy_all),XmRImmediate,(XtPointer)True
 	}
+
 };
 #undef RES_FIELD
 
@@ -128,7 +137,7 @@ static XrmOptionDescRec xrdb_options[]={
 	{"+horizontal", "horizontal", XrmoptionNoArg, (caddr_t)"False"}
 };
 
-String fallback_res[]={
+static String fallback_res[]={
 	"XmToolbox.x: 8",
 	"XmToolbox.y: 28",
 	"XmToolbox.mwmDecorations: 58",
@@ -140,30 +149,48 @@ String fallback_res[]={
 #define APP_NAME "xmtoolbox"
 #define RC_NAME	"toolboxrc"
 
-Atom xa_xmsm_mgr=None;
-Atom xa_xmsm_pid=None;
-Atom xa_xmsm_cmd=None;
-Atom xa_xmsm_cfg=None;
-int (*def_x_err_handler)(Display*,XErrorEvent*)=NULL;
-const char xmsm_cmd_err[] =
-	"Cannot retrieve session manager PID.\nxmsm not running?";
+/* MWM workspace constants (from WmGlobal.h) */
+#define _XA_MWM_WORKSPACE_PRESENCE "_MWM_WORKSPACE_PRESENCE"
+#define _XA_MWM_WORKSPACE_ALL "all"
+
+/* EWMH virtual desktop properties */
+#define _NET_NUMBER_OF_DESKTOPS "_NET_NUMBER_OF_DESKTOPS"
+#define _NET_CURRENT_DESKTOP "_NET_CURRENT_DESKTOP"
 
 XtAppContext app_context;
-Widget wshell;
-Widget wmain=None;
-Widget wdate_time=None;
-Widget wmenu=None;
-String rc_file_path=NULL;
-XtSignalId xt_sigusr1;
-KeyCode hotkey_code=0;
-unsigned int hotkey_mods=0;
+Widget wshell = None;
+
+static Atom xa_ndesks = None;
+static Atom xa_cdesk = None;
+
+static Atom xa_xmsm_mgr = None;
+static Atom xa_xmsm_pid = None;
+static Atom xa_xmsm_cmd = None;
+static Atom xa_xmsm_cfg = None;
+static int (*def_x_err_handler)(Display*,XErrorEvent*) = NULL;
+static const char xmsm_cmd_err[] =
+	"Cannot retrieve session manager PID.\nxmsm not running?";
+
+static Widget wmain = None;
+static Widget wdtlabel = None;
+static Widget wdtframe = None;
+static Widget wmenu = None;
+static Widget wswitch = None;
+static Widget wgadsep = None;
+static Widget wgadrc = None;
+static String rc_file_path = NULL;
+static XtSignalId xt_sigusr1;
+static KeyCode hotkey_code = 0;
+unsigned int hotkey_mods = 0;
 unsigned long xmsm_cfg = 0;
-Boolean sm_reqstat;
+static Boolean sm_reqstat;
+
 
 int main(int argc, char **argv)
 {
 	Window root_window;
 	Widget wframe;
+	int root_event_mask = PropertyChangeMask;
 	
 	rsignal(SIGUSR1, sigusr_handler);
 	rsignal(SIGUSR2, sigusr_handler);
@@ -172,10 +199,11 @@ int main(int argc, char **argv)
 	XtSetLanguageProc(NULL,NULL,NULL);
 	XtToolkitInitialize();
 	
-	wshell=XtVaAppInitialize(&app_context, "XmToolbox",
+	wshell = XtVaAppInitialize(&app_context, "XmToolbox",
 		xrdb_options, XtNumber(xrdb_options), &argc,argv, fallback_res,
 		XmNiconName, APP_TITLE, XmNallowShellResize, True,
-		XmNmwmFunctions, MWM_FUNC_MOVE|MWM_FUNC_MINIMIZE, NULL);
+		XmNmwmFunctions, MWM_FUNC_MOVE|MWM_FUNC_MINIMIZE,
+		XmNmappedWhenManaged, False, NULL);
 
 	if(argc > 1) {
 		int i;
@@ -191,11 +219,17 @@ int main(int argc, char **argv)
 	
 	XtGetApplicationResources(wshell,&app_res,xrdb_resources,
 		XtNumber(xrdb_resources),NULL,0);
-
+	
+	/* XMSM IPC atoms */
 	xa_xmsm_mgr = XInternAtom(XtDisplay(wshell), XMSM_ATOM_NAME, True);
 	xa_xmsm_pid = XInternAtom(XtDisplay(wshell), XMSM_PID_ATOM_NAME, True);
 	xa_xmsm_cmd = XInternAtom(XtDisplay(wshell), XMSM_CMD_ATOM_NAME, True);
 	xa_xmsm_cfg = XInternAtom(XtDisplay(wshell), XMSM_CFG_ATOM_NAME, True);
+	
+	/* EWMH virtual desktop atoms */
+	xa_ndesks = XInternAtom(XtDisplay(wshell), _NET_NUMBER_OF_DESKTOPS, False);
+	xa_cdesk = XInternAtom(XtDisplay(wshell), _NET_CURRENT_DESKTOP, False);
+
 
 	if(!get_xmsm_config(&xmsm_cfg)) 
 		message_dialog(False, xmsm_cmd_err);
@@ -219,10 +253,10 @@ int main(int argc, char **argv)
 		}
 	}
 
-	wframe=XmVaCreateManagedFrame(wshell,"mainFrame",
+	wframe = XmVaCreateManagedFrame(wshell,"mainFrame",
 		XmNshadowType, XmSHADOW_OUT, NULL);
 	
-	wmain=XmVaCreateManagedRowColumn(wframe, "main",
+	wmain = XmVaCreateManagedRowColumn(wframe, "main",
 		XmNmarginWidth, 0,
 		XmNmarginHeight, 0,
 		XmNspacing, 0,
@@ -246,18 +280,27 @@ int main(int argc, char **argv)
 
 	create_utility_widgets(wmain);
 	
-	xt_sigusr1 = XtAppAddSignal(app_context,xt_sigusr1_handler,NULL);
-
-	XtRealizeWidget(wshell);
-	set_icon(wshell);
-	setup_hotkeys();
-
 	root_window = XDefaultRootWindow(XtDisplay(wshell));
-			
+	xt_sigusr1 = XtAppAddSignal(app_context,xt_sigusr1_handler,NULL);
+	
+	XtRealizeWidget(wshell);
+	if(app_res.occupy_all) set_ws_presence(wshell);
+	set_icon(wshell);
+
+	if(setup_hotkeys())
+		root_event_mask |= KeyPressMask;
+
+	XtMapWidget(wshell);
+
+	if(XtIsManaged(wswitch))
+		XmProcessTraversal(wswitch, XmTRAVERSE_CURRENT);
+
+	XSelectInput(XtDisplay(wshell), root_window, root_event_mask);
+
 	for(;;) {
 		XEvent evt;
 		XtAppNextEvent(app_context,&evt);
-		if(evt.xany.window==root_window)
+		if(evt.xany.window == root_window)
 			handle_root_event(&evt);
 		else
 			XtDispatchEvent(&evt);
@@ -274,7 +317,11 @@ static void set_icon(Widget wshell)
 	Display *dpy = XtDisplay(wshell);
 	int depth, screen;
 	Screen *pscreen;
-
+	Colormap cmap;
+	XColor bg_color;
+	XColor fg_color;
+	XColor tmp;
+	
 	#include "xbm/toolbox.xbm"
 	#include "xbm/toolbox_m.xbm"
 	
@@ -282,13 +329,17 @@ static void set_icon(Widget wshell)
 	screen = XScreenNumberOfScreen(pscreen);
 	root = RootWindowOfScreen(pscreen);
 	depth = DefaultDepth(dpy, screen);
+	cmap = DefaultColormap(dpy, screen);
+	
+	fg_color.pixel = BlackPixel(dpy, screen);
+	bg_color.pixel = WhitePixel(dpy, screen);
+	
+	XAllocNamedColor(dpy, cmap, "LightBlue", &bg_color, &tmp);
 	
 	image = XCreatePixmapFromBitmapData(dpy, root,
 		(char*)toolbox_xbm_bits,
-		toolbox_xbm_width,
-		toolbox_xbm_height,
-		BlackPixel(dpy, screen),
-		WhitePixel(dpy, screen), depth);
+		toolbox_xbm_width, toolbox_xbm_height,
+		fg_color.pixel, bg_color.pixel, depth);
 
 	mask = XCreatePixmapFromBitmapData(dpy, root,
 		(char*)toolbox_m_xbm_bits,
@@ -298,71 +349,79 @@ static void set_icon(Widget wshell)
 	XtVaSetValues(wshell, XmNiconPixmap, image, XmNiconMask, mask, NULL);
 }
 
+/* Sets shell's workspace presence to all */
+static void set_ws_presence(Widget wshell)
+{
+	Display *dpy = XtDisplay(wshell);
+	Atom wps_atom = XInternAtom(dpy, _XA_MWM_WORKSPACE_PRESENCE, False);
+	Atom all_atom = XInternAtom(dpy, _XA_MWM_WORKSPACE_ALL, False);
+	
+	XChangeProperty(dpy, XtWindow(wshell), wps_atom,
+		wps_atom, 32, PropModeReplace, (unsigned char*)&all_atom, 1);
+}
+
 /*
  * Parse the specified hotkey combination, grab the key and attach a callback.
  */
-static void setup_hotkeys(void)
+static Boolean setup_hotkeys(void)
 {
 	Window root_window;
 	char *buf;
 	char *token;
-	KeySym key_sym=NoSymbol;
-	static int (*def_x_err_handler)(Display*,XErrorEvent*)=NULL;
+	KeySym key_sym = NoSymbol;
+	static int (*def_x_err_handler)(Display*, XErrorEvent*) = NULL;
 	
-	if(!app_res.hotkey || !strcasecmp(app_res.hotkey,"none")) return;
+	if(!app_res.hotkey || !strcasecmp(app_res.hotkey, "none")) return False;
 
-	hotkey_code=0;
-	hotkey_mods=0;
+	hotkey_code = 0;
+	hotkey_mods = 0;
 
 	buf=strdup(app_res.hotkey);	
 	token=strtok(buf," \t+");
 	if(token){
 		while(token){
-			if(!strcasecmp(token,"alt")){
-				hotkey_mods|=Mod1Mask;
-			}else if(!strcasecmp(token,"ctrl") ||
-				!strcasecmp(token,"control")){
-				hotkey_mods|=ControlMask;
-			}else if(!strcasecmp(token,"shift")){
-				hotkey_mods|=ShiftMask;
+			if(!strcasecmp(token, "alt")){
+				hotkey_mods |= Mod1Mask;
+			}else if(!strcasecmp(token, "ctrl") ||
+				!strcasecmp(token, "control")){
+				hotkey_mods |= ControlMask;
+			}else if(!strcasecmp(token, "shift")){
+				hotkey_mods |= ShiftMask;
 			}else{
-				key_sym=XStringToKeysym(token);
+				key_sym = XStringToKeysym(token);
 				break;
 			}
-			token=strtok(NULL," \t+");
+			token = strtok(NULL," \t+");
 		}
 	}else{
-		key_sym=XStringToKeysym(buf);
+		key_sym = XStringToKeysym(buf);
 	}
 	free(buf);
 
 	if(key_sym == NoSymbol){
-		fputs("Invalid hotkey specification\n",stderr);
-		return;
+		fputs("Invalid hotkey specification\n", stderr);
+		return False;
 	}
-	hotkey_code = XKeysymToKeycode(XtDisplay(wshell),key_sym);
+	hotkey_code = XKeysymToKeycode(XtDisplay(wshell), key_sym);
 	
 	root_window = XDefaultRootWindow(XtDisplay(wshell));
 	
-	XSync(XtDisplay(wshell),False);
+	XSync(XtDisplay(wshell), False);
 	def_x_err_handler = XSetErrorHandler(xgrabkey_err_handler);
 	
-	/* We need to grab all possible combinations of specified modifiers +
-	 * any lock modifiers that may be active. I'm not aware of any better
-	 * way to get this working */
-	XGrabKey(XtDisplay(wshell),hotkey_code,hotkey_mods,
-		root_window,False,GrabModeAsync,GrabModeAsync);
-	XGrabKey(XtDisplay(wshell),hotkey_code,hotkey_mods|Mod2Mask,
-		root_window,False,GrabModeAsync,GrabModeAsync);
-	XGrabKey(XtDisplay(wshell),hotkey_code,hotkey_mods|LockMask,
-		root_window,False,GrabModeAsync,GrabModeAsync);
-	XGrabKey(XtDisplay(wshell),hotkey_code,hotkey_mods|LockMask|Mod2Mask,
-		root_window,False,GrabModeAsync,GrabModeAsync);	
+	XGrabKey(XtDisplay(wshell), hotkey_code, hotkey_mods,
+		root_window, False, GrabModeAsync, GrabModeAsync);
+	XGrabKey(XtDisplay(wshell), hotkey_code, hotkey_mods | Mod2Mask,
+		root_window, False, GrabModeAsync, GrabModeAsync);
+	XGrabKey(XtDisplay(wshell), hotkey_code, hotkey_mods | LockMask,
+		root_window, False, GrabModeAsync, GrabModeAsync);
+	XGrabKey(XtDisplay(wshell), hotkey_code, hotkey_mods | LockMask | Mod2Mask,
+		root_window, False, GrabModeAsync, GrabModeAsync);	
 	
-	XSync(XtDisplay(wshell),False);
+	XSync(XtDisplay(wshell), False);
 	XSetErrorHandler(def_x_err_handler);
-		
-	XSelectInput(XtDisplay(wshell),root_window,KeyPressMask);
+	
+	return True;		
 }
 
 /*
@@ -384,11 +443,55 @@ static int xgrabkey_err_handler(Display *dpy, XErrorEvent *evt)
  */
 static void handle_root_event(XEvent *evt)
 {
-	XKeyEvent *e = (XKeyEvent*)evt;
 	
-	if(e->type == KeyRelease && e->keycode == hotkey_code &&
-		((e->state & hotkey_mods) || !hotkey_mods)){
-		raise_and_focus(wshell);
+	if(evt->type == KeyRelease) {
+		XKeyEvent *e = (XKeyEvent*)evt;
+	
+		if(e->keycode == hotkey_code &&
+			((e->state & hotkey_mods) || !hotkey_mods))
+				raise_and_focus(wshell);
+
+	} else if(evt->type == PropertyNotify) {
+		XPropertyEvent *e = (XPropertyEvent*)evt;
+
+		if((e->atom == xa_cdesk || e->atom == xa_ndesks) && app_res.switcher) {
+			unsigned short nws, iws;
+			if(get_ws_info(&nws, &iws)) {
+				Arg args[3];
+				int n = 0;
+				
+				if(e->atom == xa_ndesks) {
+					XtSetArg(args[n], NnumberOfWorkspaces, nws); n++;
+					if(app_res.horizontal) {
+						XtSetArg(args[n], XmNcolumns, nws);
+						n++;
+					}
+
+					if(nws > 1) {
+						XtManageChild(wswitch);
+						XtManageChild(wgadrc);
+						if(app_res.separators) XtManageChild(wgadsep);
+						XmProcessTraversal(wswitch, XmTRAVERSE_CURRENT);
+					} else {
+						XtUnmanageChild(wswitch);
+						if(!app_res.show_date_time) {
+							XtUnmanageChild(wgadrc);
+							XtUnmanageChild(wgadsep);
+						}
+					}
+				}
+
+				XtSetArg(args[n], NactiveWorkspace, iws); n++;
+				XtSetValues(wswitch, args, n);
+			} else {
+				fputs("Failed to retrieve workspace information.\n", stderr);
+				XtUnmanageChild(wswitch);
+				if(!app_res.show_date_time) {
+					XtUnmanageChild(wgadrc);
+					XtUnmanageChild(wgadsep);
+				}
+			}
+		}
 	}
 }
 
@@ -588,11 +691,14 @@ static void report_rcfile_error(const char *rc_file, const char *err_desc)
 
 static void create_utility_widgets(Widget wparent)
 {
+	XtCallbackRec cbr[2] = { NULL };
 	Widget wmenu;
 	Widget wpulldown;
 	Widget wcascade;
 	Widget w;
 	XmString title;
+	unsigned short nws = 0;
+	unsigned short iws = 0;
 	Arg args[10];
 	int n;
 	
@@ -602,7 +708,7 @@ static void create_utility_widgets(Widget wparent)
 	if(app_res.separators) XtManageChild(w);
 	
 	/* 'Session' menu */
-	wmenu=XmVaCreateManagedRowColumn(wparent, "menu",
+	wmenu = XmVaCreateManagedRowColumn(wparent, "menu",
 		XmNshadowThickness, 0,
 		XmNspacing, 1,
 		XmNmarginWidth, 0,
@@ -611,74 +717,107 @@ static void create_utility_widgets(Widget wparent)
 	
 	wpulldown=XmCreatePulldownMenu(wmenu,"sessionPulldown",NULL,0);
 			
-	title=XmStringCreateLocalized("Session");
+	title = XmStringCreateLocalized("Session");
 	n=0;
-	XtSetArg(args[n],XmNlabelString,title); n++;
-	XtSetArg(args[n],XmNmnemonic,(KeySym)'S'); n++;
-	XtSetArg(args[n],XmNsubMenuId,wpulldown); n++;
-	wcascade=XmCreateCascadeButtonGadget(wmenu,"cascadeButton",args,n);
+	XtSetArg(args[n], XmNlabelString, title); n++;
+	XtSetArg(args[n], XmNmnemonic, (KeySym)'S'); n++;
+	XtSetArg(args[n], XmNsubMenuId, wpulldown); n++;
+	wcascade = XmCreateCascadeButtonGadget(wmenu, "cascadeButton", args, n);
 	XmStringFree(title);
 	XtManageChild(wcascade);
 		
-	n=0;
+	n = 0;
+	cbr[0].callback = exec_cb;
 	title=XmStringCreateLocalized("Execute...");
-	XtSetArg(args[n],XmNlabelString,title); n++;
-	XtSetArg(args[n],XmNmnemonic,(KeySym)'E'); n++;
-	w=XmCreatePushButtonGadget(wpulldown,"execMenuButton",args,n);
-	XtAddCallback(w,XmNactivateCallback,exec_cb,NULL);
+	XtSetArg(args[n], XmNlabelString, title); n++;
+	XtSetArg(args[n], XmNmnemonic, (KeySym)'E'); n++;
+	XtSetArg(args[n], XmNactivateCallback, cbr); n++;
+	w = XmCreatePushButtonGadget(wpulldown, "execMenuButton", args, n);
 	XmStringFree(title);
 	XtManageChild(w);
 
-	w=XmCreateSeparatorGadget(wpulldown,"separator",NULL,0);
+	w = XmCreateSeparatorGadget(wpulldown,"separator",NULL,0);
 	XtManageChild(w);
 
 	if(xmsm_cfg & XMSM_CFG_LOCK) {
-		n=0;
-		title=XmStringCreateLocalized("Lock");
-		XtSetArg(args[n],XmNlabelString,title); n++;
-		XtSetArg(args[n],XmNmnemonic,(KeySym)'L'); n++;
-		w=XmCreatePushButtonGadget(wpulldown,"lockMenuButton",args,n);
-		XtAddCallback(w,XmNactivateCallback,lock_cb,NULL);
+		n = 0;
+		cbr[0].callback = lock_cb;
+		title = XmStringCreateLocalized("Lock");
+		XtSetArg(args[n], XmNlabelString, title); n++;
+		XtSetArg(args[n], XmNmnemonic, (KeySym)'L'); n++;
+		XtSetArg(args[n], XmNactivateCallback, cbr); n++;
+		w = XmCreatePushButtonGadget(wpulldown,"lockMenuButton", args, n);
 		XmStringFree(title);
 		XtManageChild(w);
 	}
 
-	n=0;
+	n = 0;
+	cbr[0].callback = logout_cb;
 	title=XmStringCreateLocalized("Logout...");
-	XtSetArg(args[n],XmNlabelString,title); n++;
-	XtSetArg(args[n],XmNmnemonic,(KeySym)'o'); n++;
-	w=XmCreatePushButtonGadget(wpulldown,"logoutMenuButton",args,n);
-	XtAddCallback(w,XmNactivateCallback,logout_cb,NULL);
+	XtSetArg(args[n], XmNlabelString,title); n++;
+	XtSetArg(args[n], XmNmnemonic,(KeySym)'o'); n++;
+	XtSetArg(args[n], XmNactivateCallback, cbr); n++;
+	w = XmCreatePushButtonGadget(wpulldown,"logoutMenuButton",args,n);
 	XmStringFree(title);
 	XtManageChild(w);
 
 	if(xmsm_cfg & XMSM_CFG_SUSPEND) {
-		n=0;
-		title=XmStringCreateLocalized("Suspend");
-		XtSetArg(args[n],XmNlabelString,title); n++;
-		XtSetArg(args[n],XmNmnemonic,(KeySym)'S'); n++;
-		w=XmCreatePushButtonGadget(wpulldown,"suspendMenuButton",args,n);
-		XtAddCallback(w,XmNactivateCallback,suspend_cb,NULL);
+		n = 0;
+		cbr[0].callback = suspend_cb;
+		title = XmStringCreateLocalized("Suspend");
+		XtSetArg(args[n], XmNlabelString,title); n++;
+		XtSetArg(args[n], XmNmnemonic,(KeySym)'S'); n++;
+		XtSetArg(args[n], XmNactivateCallback, cbr); n++;
+		w = XmCreatePushButtonGadget(wpulldown, "suspendMenuButton", args, n);
 		XmStringFree(title);
 		XtManageChild(w);
 	}
 
-	/* The time-date display */
 	XtSetArg(args[0], XmNorientation,
 		(app_res.horizontal ? XmVERTICAL:XmHORIZONTAL));
-	w = XmCreateSeparatorGadget(wparent, "separator", args, 1);
+	wgadsep = XmCreateSeparatorGadget(wparent, "separator", args, 1);
 
-	n=0;
-	XtSetArg(args[n],XmNalignment,XmALIGNMENT_CENTER); n++;
-	XtSetArg(args[n],XmNmarginWidth,6); n++;
-	XtSetArg(args[n],XmNmarginHeight,6); n++;
-	wdate_time=XmCreateLabelGadget(wparent,"dateTime",args,n);
+	/* Time and workspace switcher RC */
+	wgadrc = XmVaCreateRowColumn(wparent, "gadgets",
+		XmNmarginWidth, 3,
+		XmNmarginHeight, 3,
+		XmNspacing, 3,
+		XmNorientation, (app_res.horizontal ? XmHORIZONTAL:XmVERTICAL),
+		NULL);
+
+	/* The workspace switcher */
+	n = 0;
+	if(get_ws_info(&nws, &iws)) {
+		XtSetArg(args[n], NnumberOfWorkspaces, nws); n++;
+		XtSetArg(args[n], NactiveWorkspace, iws); n++;
+	}
+	cbr[0].callback = ws_change_cb;
+	XtSetArg(args[n], XmNvalueChangedCallback, &cbr); n++;
+	wswitch = CreateSwitcher(wgadrc, "workspaceSwitcher", args, n);
+	if(app_res.switcher && (nws > 1)) {
+		XtManageChild(wswitch);
+		if(app_res.separators) XtManageChild(wgadsep);
+	}
+
+	/* The time-date display */
+	n = 0;
+	XtSetArg(args[n], XmNshadowType, XmSHADOW_IN); n++;
+	XtSetArg(args[n], XmNshadowThickness, 1); n++;
+	XtSetArg(args[n], XmNmarginWidth, 2); n++;
+	XtSetArg(args[n], XmNmarginHeight, 2); n++;
+	wdtframe = XmCreateFrame(wgadrc, "dateTimeFrame", args, n);
+
+	n = 0;
+	XtSetArg(args[n], XmNalignment, XmALIGNMENT_CENTER); n++;
+	wdtlabel = XmCreateLabelGadget(wdtframe, "dateTime", args, n);
 	if(app_res.show_date_time){
-		if(app_res.separators) XtManageChild(w);
-		XtManageChild(wdate_time);
+		XtManageChild(wdtlabel);
+		XtManageChild(wdtframe);
+		if(app_res.separators) XtManageChild(wgadsep);
 		time_update_cb(NULL,NULL);
 	}
-	
+	if(XtIsManaged(wswitch) || app_res.show_date_time)
+		XtManageChild(wgadrc);
 }
 
 /*
@@ -692,6 +831,7 @@ static void create_utility_widgets(Widget wparent)
 
 static char* find_rc_file(void)
 {
+	size_t len;
 	char *home=NULL;
 	char *lang=NULL;
 	char *path;
@@ -704,60 +844,37 @@ static char* find_rc_file(void)
 		NULL
 	};
 	
-	home=getenv("HOME");
-	lang=getenv("LANG");
+	home = getenv("HOME");
+	lang = getenv("LANG");
 	
 	if(!home){
 		fprintf(stderr,"HOME is not set!\n");
 		return NULL;
 	}
 
-	path=malloc(strlen(home)+
-		strlen(RC_NAME)+((lang)?strlen(lang):0)+36);
+	len = 36 + strlen(home) + strlen(RC_NAME);
+	if(lang) len += strlen(lang);
+
+	path = malloc(len);
 	if(!path){
 		perror("malloc");
 		return NULL;
 	}
 
-	sprintf(path,"%s/.%s",home,RC_NAME);
+	snprintf(path, len, "%s/.%s", home, RC_NAME);
 	if(!access(path,R_OK)) return path;
 
-	for(i=0; sys_paths[i]!=NULL; i++){
+	for(i = 0; sys_paths[i] != NULL; i++){
 		if(lang){
-			sprintf(path,"%s/%s/%s",sys_paths[i],lang,RC_NAME);
+			snprintf(path, len, "%s/%s/%s", sys_paths[i], lang, RC_NAME);
 			if(!access(path,R_OK)) return path;
 		}
-		sprintf(path,"%s/%s",sys_paths[i],RC_NAME);
+		snprintf(path, len, "%s/%s", sys_paths[i], RC_NAME);
 		if(!access(path,R_OK)) return path;
 	}
 
 	free(path);
 	return NULL;
-}
-
-/*
- * Disable/Enable widget sensitivity and set pointer according
- * to the given wait state.
- */
-static void wait_state(Boolean enter_wait)
-{
-	static Cursor watch_cursor=None;
-	Display *dpy=XtDisplay(wshell);
-	
-	if(watch_cursor==None)
-		watch_cursor=XCreateFontCursor(dpy,XC_watch);
-
-	if(enter_wait){
-		XtSetSensitive(wmain,False);
-		XDefineCursor(dpy,XtWindow(wmain),watch_cursor);
-	}else{
-		XtSetSensitive(wmain,True);
-		XUndefineCursor(dpy,XtWindow(wmain));
-	}
-    while(XtAppPending(app_context) & XtIMXEvent) {
-		XtAppProcessEvent(app_context,XtIMXEvent);
-		XFlush(dpy);
-	}
 }
 
 /*
@@ -774,7 +891,8 @@ static void time_update_cb(XtPointer client_data, XtIntervalId *id)
 	the_time=localtime(&secs);
 	strftime(time_str,255,app_res.date_time_fmt,the_time);
 	xm_str=XmStringCreateLocalized(time_str);
-	XtVaSetValues(wdate_time,XmNlabelString,xm_str,NULL);
+	
+	XtVaSetValues(wdtlabel, XmNlabelString, xm_str, NULL);
 	XmStringFree(xm_str);
 	
 	XtAppAddTimeOut(app_context,
@@ -786,42 +904,54 @@ static void time_update_cb(XtPointer client_data, XtIntervalId *id)
  */
 static void xt_sigusr1_handler(XtPointer client_data, XtSignalId *id)
 {
-	wait_state(True);
 	/* on parse error, the previous configuration remains active
 	 * and the user is informed about */
 	construct_menu();
-	wait_state(False);
-
 }
 
 /*
- * Fetches a string from an input dialog.
- * Returns heap allocated string, or NULL if user cancels the dialog.
+ * Fetches a string from an input dialog and runs it as a command
  */
-static char* get_user_input(Widget wshell, const char *prompt_str)
+static void exec_cb(Widget w, XtPointer client_data, XtPointer call_data)
 {
 	static Widget wdlg = None;
 	static Widget wtext = None;
-	XmString xm_prompt_str;
 	Arg args[5];
-	int n=0;
-	char *result_str=NULL;
+	int n = 0;
 
 	if(wdlg == None){
 		XmString xm_title;
+		XmString xm_prompt;
 		XtCallbackRec callback[]={
-			{(XtCallbackProc)user_input_cb,(XtPointer)&result_str},
-			{(XtCallbackProc)NULL,(XtPointer)NULL}
+			{(XtCallbackProc)exec_dialog_cb, (XtPointer) NULL},
+			{(XtCallbackProc)NULL, (XtPointer)NULL}
 		};
+		/* Reset text field's Home/End translations to defaults, since the
+		 * selection box widget overrides them to control the list above,
+		 * which is rather unexpected and not very useful either */
+		char alt_tt_src[] = 
+			":s <Key>osfEndLine: end-of-line(extend)\n"
+			":s <Key>osfBeginLine: beginning-of-line(extend)\n"
+			":<Key>osfEndLine: end-of-line()\n"
+			":<Key>osfBeginLine: beginning-of-line()\n";
+		XtTranslations alt_tt = NULL;
 
-		n=0;
-		xm_title=XmStringCreateLocalized(APP_TITLE);
-		XtSetArg(args[n],XmNdialogTitle,xm_title); n++;
-		XtSetArg(args[n],XmNokCallback,callback); n++;
-		XtSetArg(args[n],XmNcancelCallback,callback); n++;
+		n = 0;
+		xm_title = XmStringCreateLocalized(APP_TITLE);
+		xm_prompt = XmStringCreateLocalized("Specify a command");
+		XtSetArg(args[n], XmNdialogTitle, xm_title); n++;
+		XtSetArg(args[n], XmNokCallback, callback); n++;
+		XtSetArg(args[n], XmNcancelCallback, callback); n++;
+		XtSetArg(args[n], XmNselectionLabelString, xm_prompt); n++;
+
 		wdlg = XmCreatePromptDialog(wshell, "promptDialog", args, n);
 		XmStringFree(xm_title);
+		XmStringFree(xm_prompt);
+
 		wtext = XmSelectionBoxGetChild(wdlg, XmDIALOG_TEXT);
+		alt_tt = XtParseTranslationTable(alt_tt_src);
+		if(alt_tt) XtOverrideTranslations(wtext, alt_tt);
+
 		XtUnmanageChild(XmSelectionBoxGetChild(wdlg, XmDIALOG_HELP_BUTTON));
 	} else {
 		char *text;
@@ -834,35 +964,43 @@ static char* get_user_input(Widget wshell, const char *prompt_str)
 		}
 		XtFree(text);
 	}
-	xm_prompt_str=XmStringCreateLocalized((char*)prompt_str);
-	
-	n = 0;	
-	XtSetArg(args[n], XmNselectionLabelString, xm_prompt_str); n++;
-	XtSetValues(wdlg, args, n);
-	XmStringFree(xm_prompt_str);
 	XtManageChild(wdlg);
-	
-	while(!result_str){
-		XtAppProcessEvent(app_context,XtIMAll);
-	}
-
-	return (result_str[0]=='\0')?NULL:result_str;
 }
 
 /*
- * get_user_input dialog callback
+ * exec_cb dialog callback
  */
-static void user_input_cb(Widget w, XtPointer client_data, XtPointer call_data)
+static void exec_dialog_cb(Widget w, XtPointer client_data, XtPointer call_data)
 {
+	char *command;
+	char *exp_cmd;
+	int errval;
 	XmSelectionBoxCallbackStruct *cbs=
 		(XmSelectionBoxCallbackStruct*)call_data;
-	char **result=(char**)client_data;
 
-	if(cbs->reason==XmCR_CANCEL)
-		*result="\0";
-	else
-		*result=(char*)XmStringUnparse(cbs->value,NULL,0,
-			XmCHARSET_TEXT,NULL,0,XmOUTPUT_ALL);
+	if(cbs->reason == XmCR_CANCEL) return;
+
+	command = (char*)XmStringUnparse(cbs->value, NULL, 0,
+			XmCHARSET_TEXT, NULL, 0, XmOUTPUT_ALL);
+	if(!command) return;
+
+	if(!strlen(command)) {
+		XtFree(command);
+		return;
+	}
+
+	errval = expand_env_vars(command, &exp_cmd);
+	XtFree(command);
+
+	if(errval) {
+		report_exec_error("Failed to parse command string", command, errval);
+		return;
+	}
+
+	if((errval = exec_command(exp_cmd)))
+		report_exec_error("Error executing command", exp_cmd, errval);
+		
+	free(exp_cmd);
 }
 
 /*
@@ -874,8 +1012,8 @@ static Boolean message_dialog(Boolean confirm, const char *message_str)
 	Widget wdlg;
 	XmString xm_message_str;
 	Arg args[8];
-	int n=0;
-	int result=(-1);
+	int n = 0;
+	int result = (-1);
 	XmString xm_title;
 	XtCallbackRec callback[]={
 		{(XtCallbackProc)message_dialog_cb,(XtPointer)&result},
@@ -885,17 +1023,19 @@ static Boolean message_dialog(Boolean confirm, const char *message_str)
 	xm_message_str=XmStringCreateLocalized((char*)message_str);
 	xm_title=XmStringCreateLocalized(APP_TITLE);
 
-	wdlg = XmCreateMessageDialog(wshell, "messageDialog", NULL, 0);
+	XtSetArg(args[n], XmNdialogTitle, xm_title); n++;
+	XtSetArg(args[n], XmNokCallback, callback); n++;
+	XtSetArg(args[n], XmNcancelCallback, callback); n++;
+	XtSetArg(args[n], XmNmessageString,xm_message_str); n++;
+	XtSetArg(args[n], XmNdialogStyle, XmDIALOG_PRIMARY_APPLICATION_MODAL); n++;
+
+	wdlg = XmCreateMessageDialog(wshell, "messageDialog", args, n);
 	
 	n = 0;
-	XtSetArg(args[n],XmNdialogTitle,xm_title); n++;
-	XtSetArg(args[n],XmNokCallback,callback); n++;
-	XtSetArg(args[n],XmNcancelCallback,callback); n++;
-	XtSetArg(args[n],XmNdialogType,
-		confirm?XmDIALOG_QUESTION:XmDIALOG_INFORMATION); n++;
-	XtSetArg(args[n],XmNdefaultButtonType,
-		confirm?XmDIALOG_CANCEL_BUTTON:XmDIALOG_OK_BUTTON); n++;
-	XtSetArg(args[n],XmNmessageString,xm_message_str); n++;
+	XtSetArg(args[n], XmNdialogType,
+		confirm ? XmDIALOG_QUESTION : XmDIALOG_INFORMATION); n++;
+	XtSetArg(args[n], XmNdefaultButtonType,
+		confirm ? XmDIALOG_CANCEL_BUTTON : XmDIALOG_OK_BUTTON); n++;
 	
 	XtSetValues(wdlg, args, n);
 
@@ -903,16 +1043,20 @@ static Boolean message_dialog(Boolean confirm, const char *message_str)
 	XmStringFree(xm_message_str);
 
 	if(!confirm) XtUnmanageChild(
-		XmMessageBoxGetChild(wdlg,XmDIALOG_CANCEL_BUTTON));
+		XmMessageBoxGetChild(wdlg, XmDIALOG_CANCEL_BUTTON));
 	XtUnmanageChild(XmMessageBoxGetChild(wdlg, XmDIALOG_HELP_BUTTON));
 
 	XtManageChild(wdlg);
 
-	while(result == (-1)){
-		XtAppProcessEvent(app_context,XtIMAll);
-	}
-
+	while(XtIsManaged(wdlg) && result == (-1))
+		XtAppProcessEvent(app_context, XtIMXEvent);
+	
+	if(result == (-1)) result = 0;
+	
 	XtDestroyWidget(wdlg);
+	XSync(XtDisplay(wdlg), False);
+	XmUpdateDisplay(wshell);
+	
 	return (Boolean)result;
 }
 
@@ -1154,27 +1298,64 @@ static int local_x_err_handler(Display *dpy, XErrorEvent *evt)
 	return def_x_err_handler(dpy,evt);
 }
 
-static void exec_cb(Widget w, XtPointer client_data, XtPointer call_data)
+/* Retrieves EWMH workspace info properties from the root window */
+static Boolean get_ws_info(unsigned short *ws_count, unsigned short *iactive)
 {
-	char *command;
-	char *exp_cmd;
-	int errval;
-	
-	command = get_user_input(wshell,"Command to execute");
-	if(!command) return;
+	Boolean success = True;
+	Display *dpy = XtDisplay(wshell);
+	Window root = DefaultRootWindow(dpy);
 
-	errval = expand_env_vars(command, &exp_cmd);
-	if(errval) {
-		report_exec_error("Failed to parse command string", command, errval);
-		free(command);
-		return;
+	Atom ret_type;
+	int ret_format;
+	unsigned long ret_items;
+	unsigned long left_items;
+	unsigned char *prop_data;
+	
+	XGetWindowProperty(dpy, root, xa_ndesks, 0, sizeof(unsigned long),
+			False, XA_CARDINAL, &ret_type, &ret_format, &ret_items,
+			&left_items, &prop_data);
+	if(ret_items) {
+		*ws_count = (unsigned short)*prop_data;
+		XFree(prop_data);
+	} else {
+		ws_count = 0;
+		success = False;
 	}
 
-	if((errval = exec_command(exp_cmd)))
-		report_exec_error("Error executing command", exp_cmd, errval);
-		
-	free(command);
-	free(exp_cmd);
+	XGetWindowProperty(dpy, root, xa_cdesk, 0, sizeof(unsigned long),
+			False, XA_CARDINAL, &ret_type, &ret_format, &ret_items,
+			&left_items, &prop_data);
+
+	if(ret_items) {
+		*iactive = (unsigned short)*prop_data;
+		XFree(prop_data);
+	} else {
+		*iactive = 0;
+		success = False;
+	}
+
+	return success;
+}
+
+static void ws_change_cb(Widget w, XtPointer client_data, XtPointer call_data)
+{
+	Display *dpy = XtDisplay(wshell);
+	Window root_wnd = XDefaultRootWindow(XtDisplay(wshell));
+	short *index = (short*)call_data;
+
+	XClientMessageEvent evt = {
+		.type = ClientMessage,
+		.display = dpy,
+		.window = root_wnd,
+		.message_type = xa_cdesk,
+		.format = 32
+	};
+
+	evt.data.l[0] = (long)*index;
+	evt.data.l[1] = CurrentTime;
+	XSendEvent(dpy, root_wnd, False,
+		SubstructureRedirectMask | SubstructureNotifyMask, (XEvent*)&evt);
+
 }
 
 static void suspend_cb(Widget w, XtPointer client_data, XtPointer call_data)

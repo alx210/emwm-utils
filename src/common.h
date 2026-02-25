@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023-2025 alx@fastestcode.org
+ * Copyright (C) 2023-2026 alx@fastestcode.org
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,9 +23,9 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#define VER_MAJOR 1
-#define VER_MINOR 3
-#define VER_UPLVL 1
+#define VER_MAJOR 2
+#define VER_MINOR 0
+#define VER_UPLVL 0
 
 /* Reliable signal handling (using POSIX sigaction) */
 typedef void (*sigfunc_t)(int);

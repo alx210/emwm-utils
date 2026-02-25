@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023-2025 alx@fastestcode.org
+ * Copyright (C) 2023-2026 alx@fastestcode.org
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -215,5 +215,6 @@ char* get_login(void)
 
 void print_version(const char *name)
 {
-	printf("%s %d.%d.%d\n", name, VER_MAJOR, VER_MINOR, VER_UPLVL);
+	printf("%s [WSM Branch - Alpha] %d.%d.%d\n",
+		name, VER_MAJOR, VER_MINOR, VER_UPLVL);
 }

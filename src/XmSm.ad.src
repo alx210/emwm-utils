@@ -20,6 +20,7 @@
 
 *showShutdown: True
 *showReboot: True
+
 *primaryXineramaScreen: 0
 
 *password.renderTable: variable

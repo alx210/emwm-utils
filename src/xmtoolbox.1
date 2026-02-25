@@ -22,7 +22,7 @@
 .SH NAME
 xmtoolbox - application launcher
 .SH SYNOPSIS
-xmtoolbox [-rcfile <file>] [-horizontal] [-hotkey [modifier[+\.\.\.]]+key]
+xmtoolbox [-rcfile <file>] [-horizontal] [-hotkey [modifier[+...]]+key]
 .SH DESCRIPTION
 XmToolbox displays a user defined, multi\-level menu of application groups
 and applications. It also interfaces with the xmsm(1) session manager to
@@ -36,8 +36,8 @@ Specify a configuration file to use. See \fBCONFIGURATION\fP for details.
 Specify toolbox window title. Default is user's login name and the host name.
 .TP
 \fB\-hotkey\fP \fI[Modifier ...] Key\fP
-Hotkey to raise and focus the toolbox window\.
-See the resource description below\.
+Hotkey to raise and focus the toolbox window.
+See the resource description below.
 .TP
 \fB\-horizontal\fP
 Specifies whether the top\-level menu should be laid out horizontally,
@@ -50,77 +50,105 @@ Print version info and exit.
 XmToolbox reads its menu configuration from text files. If not specified
 on command line with the \fB-rcfile\fP option, its location defaults to
 \fB.toolboxrc\fP in user's home directory and \fBtoolboxrc\fP in any of system
-configuration directories e\.g\. /etc/X11, /usr/lib/X11\.
+configuration directories e.g. /etc/X11, /usr/lib/X11.
+.SS Menu Definition Syntax
+A menu is defined by specifying the menu title followed by the opening menu
+scope delimiter { on an otherwise empty line. Menu items are defined one per
+line within the scope. The scope is terminated with the menu scope closing
+delimiter } on an otherwise empty line.
 .PP
-A menu is defined by specifying the menu title followed by one or more menu item
-definitions enclosed in {\.\.\.} brackets. Menu items are specified one per line,
-starting with the title string separated by the : character from the command\(dg
-to be executed. A horizontal line may be added between menu items with the
-special identifier SEPARATOR. Any character in the title string may be prefixed
-with the ampersand character to specify a mnemonic. Comments may be entered
-following the # character at the beginning of a line. Sub\-menus may be defined
-by placing them within the scope of the parent menu. Menu scope {} delimiters
-may only be placed at the beginning of an otherwise empty line. 
+Menu item definitions start with the title string, separated by the : delimiter
+from the command\(dg to be executed (all characters to the end of the line, except
+trailing whitespace, are treated as a part of the command). A horizontal
+separator line may be added between menu items using the special identifier
+SEPARATOR. Any character in the title string may be prefixed with the ampersand
+character to specify a mnemonic. Comments may be entered following the #
+character at the beginning of a line. Sub\-menus may be defined by placing them
+within the scope of another menu. Literal & and : characters in title strings
+may be specified by escaping them with the \\ character.
 .PP
-Literal & and : characters in title strings may be specified by prefixing them
-with the \\ escape character. Literal whitespace characters in the command
-string may be specified either by escaping them with \\, or enclosing the part
-of the string in quotation marks\.
-.PP
-The command string may contain sh(1) like ($\.\.\. and ${\.\.\.}) environment
+\(dg A command string containing whitespace characters will be broken up into
+separate arguments. Literal whitespace may therefore be specified either by
+escaping it with \\, or enclosing the part of the string in quotation marks.
+The command string may also contain sh(1) like ($... and ${...}) environment
 variables, which will be expanded accordingly. A literal $ may be specified
-with $$. Undefined variables are not treated as error, and expand to nothing,
-though a warning is printed to stderr\.
+with $$. Undefined variables are not treated as error and expand to nothing,
+though a warning is printed to stderr.
 .PP
+Accompanying BNF notation:
 .nf
-# Comment
 
-Menu Title
+# <comment>
+
+<menu title>
 {
-	Title: Command
-	SEPARATOR
-	\.\.\.
-
-	Submenu Title
-	{
-		Title: Command
-		\.\.\.
-	}
+	<application title>: <command>
+	|SEPARATOR
+	...
 }
-...
 .fi
 .SH RESOURCES
 .TP
 \fBtitle\fP \fIString\fP
-This resource is used to specify a custom window title\.
-Defaults to user's login name and the host name: <user>@<host>\.
+This resource is used to specify a custom window title.
+Defaults to user's login name and the host name: <user>@<host>.
 .TP
 \fBdateTimeDisplay\fP \fIBoolean\fP
-Display date and time\. Default is \fITrue\fP\.
+Display date and time\. Default is \fITrue\fP.
 .TP
 \fBdateTimeFormat\fP \fIString\fP
-Date and time format string\. See strftime(3). Defaults to "%D %l:%M %p"\.
+Date and time format string. See strftime(3). Defaults to "%m/%d %l:%M %p".
 .TP
-\fBhotkey\fP [\fIModifier\fP \.\.\.] \fIKey\fP | None
+\fBhotkey\fP [\fIModifier\fP ...] \fIKey\fP | None
 One or more modifiers followed by a key name (X KeySym names, separated by
 whitespace or +) defining the hotkey to raise and focus the toolbox window at
-any time, or \fINone\fP if no hotkey assignment is desired\. Defaults to None\.
+any time, or \fINone\fP if no hotkey assignment is desired. Defaults to None.
 .TP
 \fBhorizontal\fP \fIBoolean\fP
 Specifies whether the top\-level menu should be laid out horizontally,
 rather than vertically. Default is False.
 .TP
+\fBoccupyAllWorkspaces\fB \fIBoolean\fP
+If set to True, the Toolbox window will request to be put in all workspaces.
+Default is \fITrue\fP.
+.TP
 \fBrcFile\fP \fIString\fP
-Full path to the configuration file\. See \fBCONFIGURATION\fP for details\.
+Full path to the configuration file. See \fBCONFIGURATION\fP for details.
 .TP
 \fBseparators\fP \fIBoolean\fP
-If true, separators will be displayed between launcher, session and time/date
-display parts\. Default is \fITrue\fP\.
-.SH SIGNALS
+If set to True, separators will be displayed between launcher, session and 
+workspace and time/date display parts. Default is \fITrue\fP.
+.TP
+\fBworkspaceSwitcher\fP \fIBoolean\fP
+If set to True and the window manager has more than one workspace, the
+workspace switcher will be displayed. Default is \fITrue\fP.
+See also: \fBWORKSPACE SWITCHER RESOURCES\fP.
+.SH WORKSPACE SWITCHER RESOURCES
+The workspace switcher widget's class and instance names are
+\fBWorkspaceSwitcher\fP and \fBworkspaceSwitcher\fP, respectively. It inherits
+resources from \fBXmPrimitive(3)\fP.
 .PP
-XmToolbox responds to SIGUSR1 signal by reparsing the menu configuration file\.
+The default translation table maps number keys 1 to 8 to workspace buttons.
+This can be customized by overriding the translation table with the
+\fBSelectWorkspace(<index>)\fP (where <index> is the \fBzero\fP based button
+index) action mapped to key events desired.
+.TP
+\fBcolumns\fP \fIInteger\fP
+Specifies the maximum number of workspace buttons to be placed in a single row
+before wrapping. If there are not enough buttons to fill a complete row, their
+widths will be stretched accordingly. Default value is 4.
+.TP
+\fBmarginWidth\fP  \fIInteger\fP
+Specifies the horizontal inner padding in workspace buttons. Default is 2.
+.TP
+\fBmarginHeight\fP  \fIInteger\fP
+Specifies the vertical inner padding in workspace buttons. Default is 2.
+.TP
+\fBrenderTable\fP \fIXmRenderTable\fP
+Specifies the render table to be used for drawing button labels.
+.SH SIGNALS
+XmToolbox responds to SIGUSR1 signal by reparsing the menu configuration file.
 .SH SEE ALSO
 xmsm(1) emwm(1)
 .SH AUTHORS
-.PP
 Toolbox was written and is maintained by alx@fastestcode\.org

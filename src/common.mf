@@ -4,7 +4,7 @@ CFLAGS += -DPREFIX='"$(PREFIX)"' -DRCDIR='"$(RCDIR)"' $(INCDIRS)
 toolbox_libs =  -lXm -lXt -lX11
 xmsm_libs = -lXm -lXt -lXss -lXrandr -lXinerama -lX11 $(SYSLIBS)
 
-toolbox_objs = tbmain.o tbparse.o
+toolbox_objs = tbmain.o tbparse.o wswitch.o
 xmsm_objs = smmain.o
 common_objs = common.o
 

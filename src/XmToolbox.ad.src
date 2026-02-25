@@ -4,21 +4,32 @@
 XmToolbox.x: 8
 XmToolbox.y: 28
 
-! Default title is login@host 
+! If no title specified, it defaults to <user name>@<host name>
 ! *title: Toolbox
+
+! By default there is no hotkey assigned
 ! *hotkey: Super_L
 
-*dateTimeDisplay: True
-*dateTimeFormat: %D %l:%M %p
+! Show the workspace switcher
+*workspaceSwitcher: True
 
-! Some common values for mwmDecorations
+! Show date and time widget
+*dateTimeDisplay: True
+*dateTimeFormat: %m/%d %l:%M %p
+
+! Tell the window manager to put the toolbox in all workspaces
+*occupyAllWorkspaces: True
+
+! Motif doesn't define user friendly values for window decorations, hence
+! these must be calculated by composing bits (see /usr/include/MwmUtil.h).
+! Some precalculated values for mwmDecorations follow.
 ! Borderless, title buttons:	56
 ! Borderless, no title buttons:	8
 ! Borders and title buttons:	58
 ! Borders, no title buttons:	10
 *mwmDecorations: 58
 
-! Thicker frame shadows for borderless decorations
+! For borderless decorations, thicker frame shadows may be set as follows
 ! *mainFrame.shadowThickness: 2
 
 ! Horizontal layout
@@ -27,7 +38,7 @@ XmToolbox.y: 28
 ! Show separators between launcher, session and date time parts
 *separators: True
 
-! Fonts
+! Fonts. Xft is used by default.
 *XmPushButtonGadget.renderTable: menu
 *renderTable.menu.fontType: FONT_IS_XFT
 *renderTable.menu.fontName: Liberation Sans
@@ -49,3 +60,8 @@ XmToolbox.y: 28
 *renderTable.default.fontName: Liberation Sans
 *renderTable.default.fontSize: 10
 *renderTable: default
+
+! To specify core fonts, replace fontType with FONT_IS_FONT and
+! fontName with an XLFD (fontSize is only used for Xft fonts). E.g:
+! *renderTable.menu.fontType: FONT_IS_FONT
+! *renderTable.menu.fontName: -adobe-helvetica-medium-r-normal-*-12-*-*-*-*-*-*-*

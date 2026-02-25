@@ -1279,7 +1279,7 @@ static void error_dialog(void)
 	XmStringFree(xm_message);
 	XmStringFree(xm_dismiss);
 
-	XtUnmanageChild( XmMessageBoxGetChild(wdlg,XmDIALOG_CANCEL_BUTTON));
+	XtUnmanageChild(XmMessageBoxGetChild(wdlg, XmDIALOG_CANCEL_BUTTON));
 	XtUnmanageChild(XmMessageBoxGetChild(wdlg, XmDIALOG_HELP_BUTTON));
 
 	XtManageChild(wdlg);
@@ -1494,7 +1494,7 @@ static void exit_session_dialog(void)
 	XtMapWidget(wdlgshell);
 
 	while(wresult == None)
-		XtAppProcessEvent(app_context,XtIMXEvent);
+		XtAppProcessEvent(app_context, XtIMXEvent);
 	
 	XtUnmapWidget(wdlgshell);
 	
