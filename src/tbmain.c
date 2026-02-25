@@ -65,12 +65,11 @@ static void time_update_cb(XtPointer,XtIntervalId*);
 static int exec_command(const char*);
 static void report_exec_error(const char*,const char*,int);
 static void report_rcfile_error(const char*,const char*);
-static char* get_user_input(Widget,const char*);
 static Boolean message_dialog(Boolean,const char*);
 static void wait_state(Boolean);
 static void exec_cb(Widget,XtPointer,XtPointer);
+static void exec_dialog_cb(Widget,XtPointer,XtPointer);
 static void menu_command_cb(Widget,XtPointer,XtPointer);
-static void user_input_cb(Widget,XtPointer,XtPointer);
 static void message_dialog_cb(Widget,XtPointer,XtPointer);
 static void sigchld_handler(int);
 static void sigusr_handler(int);
@@ -625,7 +624,7 @@ static void create_utility_widgets(Widget wparent)
 	XtSetArg(args[n],XmNlabelString,title); n++;
 	XtSetArg(args[n],XmNmnemonic,(KeySym)'E'); n++;
 	w=XmCreatePushButtonGadget(wpulldown,"execMenuButton",args,n);
-	XtAddCallback(w,XmNactivateCallback,exec_cb,NULL);
+	XtAddCallback(w, XmNactivateCallback, exec_cb, NULL);
 	XmStringFree(title);
 	XtManageChild(w);
 
@@ -795,32 +794,35 @@ static void xt_sigusr1_handler(XtPointer client_data, XtSignalId *id)
 }
 
 /*
- * Fetches a string from an input dialog.
- * Returns heap allocated string, or NULL if user cancels the dialog.
+ * Fetches a string from an input dialog and runs it as a command
  */
-static char* get_user_input(Widget wshell, const char *prompt_str)
+static void exec_cb(Widget w, XtPointer client_data, XtPointer call_data)
 {
 	static Widget wdlg = None;
 	static Widget wtext = None;
-	XmString xm_prompt_str;
 	Arg args[5];
-	int n=0;
-	char *result_str=NULL;
+	int n = 0;
 
 	if(wdlg == None){
 		XmString xm_title;
+		XmString xm_prompt;
 		XtCallbackRec callback[]={
-			{(XtCallbackProc)user_input_cb,(XtPointer)&result_str},
-			{(XtCallbackProc)NULL,(XtPointer)NULL}
+			{(XtCallbackProc)exec_dialog_cb, (XtPointer) NULL},
+			{(XtCallbackProc)NULL, (XtPointer)NULL}
 		};
 
-		n=0;
-		xm_title=XmStringCreateLocalized(APP_TITLE);
-		XtSetArg(args[n],XmNdialogTitle,xm_title); n++;
-		XtSetArg(args[n],XmNokCallback,callback); n++;
-		XtSetArg(args[n],XmNcancelCallback,callback); n++;
+		n = 0;
+		xm_title = XmStringCreateLocalized(APP_TITLE);
+		xm_prompt = XmStringCreateLocalized("Specify a command");
+		XtSetArg(args[n], XmNdialogTitle, xm_title); n++;
+		XtSetArg(args[n], XmNokCallback, callback); n++;
+		XtSetArg(args[n], XmNcancelCallback, callback); n++;
+		XtSetArg(args[n], XmNselectionLabelString, xm_prompt); n++;
+
 		wdlg = XmCreatePromptDialog(wshell, "promptDialog", args, n);
 		XmStringFree(xm_title);
+		XmStringFree(xm_prompt);
+
 		wtext = XmSelectionBoxGetChild(wdlg, XmDIALOG_TEXT);
 		XtUnmanageChild(XmSelectionBoxGetChild(wdlg, XmDIALOG_HELP_BUTTON));
 	} else {
@@ -834,35 +836,43 @@ static char* get_user_input(Widget wshell, const char *prompt_str)
 		}
 		XtFree(text);
 	}
-	xm_prompt_str=XmStringCreateLocalized((char*)prompt_str);
-	
-	n = 0;	
-	XtSetArg(args[n], XmNselectionLabelString, xm_prompt_str); n++;
-	XtSetValues(wdlg, args, n);
-	XmStringFree(xm_prompt_str);
 	XtManageChild(wdlg);
-	
-	while(!result_str){
-		XtAppProcessEvent(app_context,XtIMAll);
-	}
-
-	return (result_str[0]=='\0')?NULL:result_str;
 }
 
 /*
- * get_user_input dialog callback
+ * exec_cb dialog callback
  */
-static void user_input_cb(Widget w, XtPointer client_data, XtPointer call_data)
+static void exec_dialog_cb(Widget w, XtPointer client_data, XtPointer call_data)
 {
+	char *command;
+	char *exp_cmd;
+	int errval;
 	XmSelectionBoxCallbackStruct *cbs=
 		(XmSelectionBoxCallbackStruct*)call_data;
-	char **result=(char**)client_data;
 
-	if(cbs->reason==XmCR_CANCEL)
-		*result="\0";
-	else
-		*result=(char*)XmStringUnparse(cbs->value,NULL,0,
-			XmCHARSET_TEXT,NULL,0,XmOUTPUT_ALL);
+	if(cbs->reason == XmCR_CANCEL) return;
+
+	command = (char*)XmStringUnparse(cbs->value, NULL, 0,
+			XmCHARSET_TEXT, NULL, 0, XmOUTPUT_ALL);
+	if(!command) return;
+
+	if(!strlen(command)) {
+		XtFree(command);
+		return;
+	}
+
+	errval = expand_env_vars(command, &exp_cmd);
+	XtFree(command);
+
+	if(errval) {
+		report_exec_error("Failed to parse command string", command, errval);
+		return;
+	}
+
+	if((errval = exec_command(exp_cmd)))
+		report_exec_error("Error executing command", exp_cmd, errval);
+		
+	free(exp_cmd);
 }
 
 /*
@@ -888,15 +898,15 @@ static Boolean message_dialog(Boolean confirm, const char *message_str)
 	wdlg = XmCreateMessageDialog(wshell, "messageDialog", NULL, 0);
 	
 	n = 0;
-	XtSetArg(args[n],XmNdialogTitle,xm_title); n++;
-	XtSetArg(args[n],XmNokCallback,callback); n++;
-	XtSetArg(args[n],XmNcancelCallback,callback); n++;
-	XtSetArg(args[n],XmNdialogType,
-		confirm?XmDIALOG_QUESTION:XmDIALOG_INFORMATION); n++;
-	XtSetArg(args[n],XmNdefaultButtonType,
-		confirm?XmDIALOG_CANCEL_BUTTON:XmDIALOG_OK_BUTTON); n++;
-	XtSetArg(args[n],XmNmessageString,xm_message_str); n++;
-	
+	XtSetArg(args[n], XmNdialogTitle,xm_title); n++;
+	XtSetArg(args[n], XmNokCallback,callback); n++;
+	XtSetArg(args[n], XmNcancelCallback,callback); n++;
+	XtSetArg(args[n], XmNdialogType,
+		confirm ? XmDIALOG_QUESTION : XmDIALOG_INFORMATION); n++;
+	XtSetArg(args[n], XmNdefaultButtonType,
+		confirm ? XmDIALOG_CANCEL_BUTTON : XmDIALOG_OK_BUTTON); n++;
+	XtSetArg(args[n], XmNmessageString, xm_message_str); n++;
+	XtSetArg(args[n], XmNdialogStyle, XmDIALOG_PRIMARY_APPLICATION_MODAL); n++;
 	XtSetValues(wdlg, args, n);
 
 	XmStringFree(xm_title);
@@ -908,9 +918,7 @@ static Boolean message_dialog(Boolean confirm, const char *message_str)
 
 	XtManageChild(wdlg);
 
-	while(result == (-1)){
-		XtAppProcessEvent(app_context,XtIMAll);
-	}
+	while(result == (-1)) XtAppProcessEvent(app_context, XtIMXEvent);
 
 	XtDestroyWidget(wdlg);
 	return (Boolean)result;
@@ -1152,29 +1160,6 @@ static int local_x_err_handler(Display *dpy, XErrorEvent *evt)
 		return 0;
 	}
 	return def_x_err_handler(dpy,evt);
-}
-
-static void exec_cb(Widget w, XtPointer client_data, XtPointer call_data)
-{
-	char *command;
-	char *exp_cmd;
-	int errval;
-	
-	command = get_user_input(wshell,"Command to execute");
-	if(!command) return;
-
-	errval = expand_env_vars(command, &exp_cmd);
-	if(errval) {
-		report_exec_error("Failed to parse command string", command, errval);
-		free(command);
-		return;
-	}
-
-	if((errval = exec_command(exp_cmd)))
-		report_exec_error("Error executing command", exp_cmd, errval);
-		
-	free(command);
-	free(exp_cmd);
 }
 
 static void suspend_cb(Widget w, XtPointer client_data, XtPointer call_data)
