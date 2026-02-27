@@ -59,9 +59,22 @@ static char* get_line(void)
 		buf_ptr = p + 1;
 		*p = '\0';
 	} else {
-		while(*buf_ptr != '\0') buf_ptr++;
+		p = buf_ptr;
+		
+		while(*p != '\0') p++;
+		
+		buf_ptr = p;
 	}
-	return cur;
+
+	while(p != cur) {
+		p--;
+		
+		if(*p == ' ' || *p == '\t')
+			*p = '\0';
+		else
+			break;
+	}
+	return skip_blanks(cur);
 }
 
 static char* skip_blanks(char *p)
@@ -108,13 +121,12 @@ static int parse_buffer(void)
 {
 	char *line;
 	struct tb_entry tmp;
-	struct tb_entry *prev=NULL;
+	struct tb_entry *prev = NULL;
 	int nlevel = 0;
 	int iline = 0;
 	
 	while((line = get_line())){
 		iline++;
-		line = skip_blanks(line);
 		
 		if(*line == '\0' || *line == '#'){
 			continue;
@@ -137,10 +149,12 @@ static int parse_buffer(void)
 			set_parse_error(iline,"Cascade entry must have a menu scope");
 			return -1;
 		}
-		
+
 		parse_line(line, &tmp);
+		tmp.level = nlevel;
+
 		if(tmp.type == TBE_COMMAND) {
-			if(nlevel < 1){
+			if(tmp.level < 1){
 				set_parse_error(iline,
 					"Command entries must reside within a menu scope");
 				return -1;
@@ -150,9 +164,22 @@ static int parse_buffer(void)
 					"Command string expected after ':' ");
 				return -1;
 			}
+		} else if(tmp.type == TBE_CASCADE) {
+			size_t len = strlen(tmp.title);
+			char *p = tmp.title + (len - 1);
+			/* allow { on the same line as menu title */
+			if(*p == '{') {
+				nlevel++;
+				*p = '\0';
+				p--;
+				
+				while(p != tmp.title && (*p == ' ' || *p == '\t')) {
+					*p = '\0';
+					p--;
+				}
+			}
 		}
 		
-		tmp.level = nlevel;
 		if((prev = add_entry(&tmp)) == NULL) return ENOMEM;
 	}
 	return 0;
