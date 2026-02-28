@@ -858,8 +858,8 @@ static Boolean message_dialog(Boolean confirm, const char *message_str)
 	Widget wdlg;
 	XmString xm_message_str;
 	Arg args[8];
-	int n=0;
-	int result=(-1);
+	int n = 0;
+	int result = (-1);
 	XmString xm_title;
 	XtCallbackRec callback[]={
 		{(XtCallbackProc)message_dialog_cb,(XtPointer)&result},
@@ -869,32 +869,40 @@ static Boolean message_dialog(Boolean confirm, const char *message_str)
 	xm_message_str=XmStringCreateLocalized((char*)message_str);
 	xm_title=XmStringCreateLocalized(APP_TITLE);
 
-	wdlg = XmCreateMessageDialog(wshell, "messageDialog", NULL, 0);
+	XtSetArg(args[n], XmNdialogTitle, xm_title); n++;
+	XtSetArg(args[n], XmNokCallback, callback); n++;
+	XtSetArg(args[n], XmNcancelCallback, callback); n++;
+	XtSetArg(args[n], XmNmessageString,xm_message_str); n++;
+	XtSetArg(args[n], XmNdialogStyle, XmDIALOG_PRIMARY_APPLICATION_MODAL); n++;
+
+	wdlg = XmCreateMessageDialog(wshell, "messageDialog", args, n);
 	
 	n = 0;
-	XtSetArg(args[n], XmNdialogTitle,xm_title); n++;
-	XtSetArg(args[n], XmNokCallback,callback); n++;
-	XtSetArg(args[n], XmNcancelCallback,callback); n++;
 	XtSetArg(args[n], XmNdialogType,
 		confirm ? XmDIALOG_QUESTION : XmDIALOG_INFORMATION); n++;
 	XtSetArg(args[n], XmNdefaultButtonType,
 		confirm ? XmDIALOG_CANCEL_BUTTON : XmDIALOG_OK_BUTTON); n++;
-	XtSetArg(args[n], XmNmessageString, xm_message_str); n++;
-	XtSetArg(args[n], XmNdialogStyle, XmDIALOG_PRIMARY_APPLICATION_MODAL); n++;
+	
 	XtSetValues(wdlg, args, n);
 
 	XmStringFree(xm_title);
 	XmStringFree(xm_message_str);
 
 	if(!confirm) XtUnmanageChild(
-		XmMessageBoxGetChild(wdlg,XmDIALOG_CANCEL_BUTTON));
+		XmMessageBoxGetChild(wdlg, XmDIALOG_CANCEL_BUTTON));
 	XtUnmanageChild(XmMessageBoxGetChild(wdlg, XmDIALOG_HELP_BUTTON));
 
 	XtManageChild(wdlg);
 
-	while(result == (-1)) XtAppProcessEvent(app_context, XtIMXEvent);
-
+	while(XtIsManaged(wdlg) && result == (-1))
+		XtAppProcessEvent(app_context, XtIMXEvent);
+	
+	if(result == (-1)) result = 0;
+	
 	XtDestroyWidget(wdlg);
+	XSync(XtDisplay(wdlg), False);
+	XmUpdateDisplay(wshell);
+	
 	return (Boolean)result;
 }
 
