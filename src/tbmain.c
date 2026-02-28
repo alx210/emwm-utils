@@ -457,11 +457,13 @@ static void handle_root_event(XEvent *evt)
 		if((e->atom == xa_cdesk || e->atom == xa_ndesks) && app_res.switcher) {
 			unsigned short nws, iws;
 			if(get_ws_info(&nws, &iws)) {
-				Arg args[3];
-				int n = 0;
 				
 				if(e->atom == xa_ndesks) {
+					Arg args[4];
+					int n = 0;
+
 					XtSetArg(args[n], NnumberOfWorkspaces, nws); n++;
+					XtSetArg(args[n], NactiveWorkspace, iws); n++;
 					if(app_res.horizontal) {
 						XtSetArg(args[n], XmNcolumns, nws);
 						n++;
@@ -479,10 +481,10 @@ static void handle_root_event(XEvent *evt)
 							XtUnmanageChild(wgadsep);
 						}
 					}
+					XtSetValues(wswitch, args, n);
+				} else if(e->atom == xa_cdesk) {
+					SwitcherSetActiveWorkspace(wswitch, iws);
 				}
-
-				XtSetArg(args[n], NactiveWorkspace, iws); n++;
-				XtSetValues(wswitch, args, n);
 			} else {
 				fputs("Failed to retrieve workspace information.\n", stderr);
 				XtUnmanageChild(wswitch);

@@ -31,4 +31,6 @@ extern WidgetClass switcherWidgetClass;
 #define NpaddingHeight "paddingHeight"
 #define CPaddingHeight "PaddingHeight"
 
+void SwitcherSetActiveWorkspace(Widget, unsigned short);
+
 #endif /* WSWITCH_H */

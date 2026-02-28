@@ -593,3 +593,13 @@ static void select_workspace(Widget w, XEvent *evt,
 			p->ws_change_cb, (XtPointer)&iws);
 	}
 }
+
+void SwitcherSetActiveWorkspace(Widget w, unsigned short iws)
+{
+	struct switcher_part *p = SWR_PART(w);
+	
+	if(p->buttons && iws < p->nbuttons && iws != p->iactive) {
+		p->iactive = iws;
+		draw(w, True);
+	}
+}
