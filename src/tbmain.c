@@ -784,6 +784,15 @@ static void exec_cb(Widget w, XtPointer client_data, XtPointer call_data)
 			{(XtCallbackProc)exec_dialog_cb, (XtPointer) NULL},
 			{(XtCallbackProc)NULL, (XtPointer)NULL}
 		};
+		/* Reset text field's Home/End translations to defaults, since the
+		 * selection box widget overrides them to control the list above,
+		 * which is rather unexpected and not very useful either */
+		char alt_tt_src[] = 
+			":s <Key>osfEndLine: end-of-line(extend)\n"
+			":s <Key>osfBeginLine: beginning-of-line(extend)\n"
+			":<Key>osfEndLine: end-of-line()\n"
+			":<Key>osfBeginLine: beginning-of-line()\n";
+		XtTranslations alt_tt = NULL;
 
 		n = 0;
 		xm_title = XmStringCreateLocalized(APP_TITLE);
@@ -798,6 +807,9 @@ static void exec_cb(Widget w, XtPointer client_data, XtPointer call_data)
 		XmStringFree(xm_prompt);
 
 		wtext = XmSelectionBoxGetChild(wdlg, XmDIALOG_TEXT);
+		alt_tt = XtParseTranslationTable(alt_tt_src);
+		if(alt_tt) XtOverrideTranslations(wtext, alt_tt);
+
 		XtUnmanageChild(XmSelectionBoxGetChild(wdlg, XmDIALOG_HELP_BUTTON));
 	} else {
 		char *text;
