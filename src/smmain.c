@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-2025 alx@fastestcode.org
+ * Copyright (C) 2018-2026 alx@fastestcode.org
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -1393,9 +1393,10 @@ static void exit_session_dialog(void)
 		
 		string = XmStringCreateLocalized("Leaving Session");
 		wdialog = XmVaCreateManagedForm(wdlgshell,"confirmExit",
-			XmNmarginHeight,5,XmNverticalSpacing,2,
-			XmNdialogTitle,string,XmNfractionBase,5,
-			XmNdialogStyle,XmDIALOG_SYSTEM_MODAL,NULL);
+			XmNmarginHeight, 5, XmNverticalSpacing, 2,
+			XmNdialogTitle, string, XmNfractionBase, 5,
+			XmNdialogStyle, XmDIALOG_SYSTEM_MODAL,
+			XmNautoUnmanage, True, NULL);
 		XmStringFree(string);
 		
 		string = XmStringCreateLocalized(
@@ -1531,8 +1532,10 @@ static void exit_session_dialog(void)
 	XtManageChild(wdialog);
 	XtMapWidget(wdlgshell);
 
-	while(wresult == None)
-		XtAppProcessEvent(app_context,XtIMXEvent);
+	while(XtIsManaged(wdialog) && (wresult == None))
+		XtAppProcessEvent(app_context, XtIMXEvent);
+	
+	if(wresult == None) wresult = wcancel;
 	
 	XtUnmapWidget(wdlgshell);
 	
