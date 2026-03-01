@@ -322,7 +322,7 @@ static short hit_test(Widget w, Position x, Position y)
  */
 static void expose(Widget w, XEvent *evt, Region reg)
 {
-	draw(w, True);
+	draw(w, False);
 }
 
 static void resize(Widget w)
