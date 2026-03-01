@@ -1355,9 +1355,10 @@ static void exit_session_dialog(void)
 		
 		string = XmStringCreateLocalized("Leaving Session");
 		wdialog = XmVaCreateManagedForm(wdlgshell,"confirmExit",
-			XmNmarginHeight,5,XmNverticalSpacing,2,
-			XmNdialogTitle,string,XmNfractionBase,5,
-			XmNdialogStyle,XmDIALOG_SYSTEM_MODAL,NULL);
+			XmNmarginHeight, 5, XmNverticalSpacing, 2,
+			XmNdialogTitle, string, XmNfractionBase, 5,
+			XmNdialogStyle, XmDIALOG_SYSTEM_MODAL,
+			XmNautoUnmanage, True, NULL);
 		XmStringFree(string);
 		
 		string = XmStringCreateLocalized(
@@ -1493,12 +1494,12 @@ static void exit_session_dialog(void)
 	XtManageChild(wdialog);
 	XtMapWidget(wdlgshell);
 
-	while(wresult == None)
+	while(XtIsManaged(wdialog) && (wresult == None))
 		XtAppProcessEvent(app_context, XtIMXEvent);
 	
 	XtUnmapWidget(wdlgshell);
 	
-	if(wresult == wcancel) {
+	if((wresult == None) || (wresult == wcancel)) {
 		if(app_res.enable_shade) {
 			for(i = 0; i < nscreens; i++) {
 				XtUnmapWidget(wshades[i]);
