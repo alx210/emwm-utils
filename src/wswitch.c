@@ -497,8 +497,10 @@ static Boolean set_values(Widget wcur, Widget wreq,
 		} else set->switcher.nbuttons = 0;
 
 		get_pref_dimensions(wset, &width, &height);
-		XtMakeResizeRequest(wset, width, height, &width, &height);
-		XtMakeResizeRequest(wset, width, height, NULL, NULL);
+		if(XtMakeResizeRequest(wset,
+			width, height, &width, &height)	== XtGeometryAlmost) {
+			XtMakeResizeRequest(wset, width, height, NULL, NULL);
+		}
 		layout(wset);
 	}
 	if(cur->switcher.iactive != set->switcher.iactive) {
