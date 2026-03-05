@@ -93,6 +93,7 @@ static void set_root_cursor(void);
 static void set_numlock_state(void);
 static int local_x_err_handler(Display*,XErrorEvent*);
 static void xt_sigusr1_handler(XtPointer,XtSignalId*);
+static void xt_sigusr2_handler(XtPointer,XtSignalId*);
 static void cmd_event_handler(XClientMessageEvent*);
 static void set_config_info(void);
 static void exit_session_dialog(void);
@@ -212,9 +213,10 @@ static Widget wunlock;
 static Widget wpasswd;
 static Widget wmessage;
 static Widget *wshades;
-static XtIntervalId unlock_widget_timer=None;
-static XtIntervalId lock_timer=None;
+static XtIntervalId unlock_widget_timer = None;
+static XtIntervalId lock_timer = None;
 static XtSignalId xt_sigusr1;
+static XtSignalId xt_sigusr2;
 static Boolean scr_locked = False;
 static Boolean covers_up = False;
 static Boolean unlock_up = False;
@@ -316,7 +318,8 @@ int main(int argc, char **argv)
 	}
 	process_sessionetc();
 
-	xt_sigusr1 = XtAppAddSignal(app_context,xt_sigusr1_handler,NULL);
+	xt_sigusr1 = XtAppAddSignal(app_context, xt_sigusr1_handler, NULL);
+	xt_sigusr2 = XtAppAddSignal(app_context, xt_sigusr2_handler, NULL);
 
 	xa_MOTIF_WM_OFFSET =
 		XInternAtom(XtDisplay(wshell), _XA_MOTIF_WM_OFFSET, False);
@@ -1531,7 +1534,7 @@ static void exit_session_dialog(void)
 				XmUNSPECIFIED_PIXMAP, NULL);
 		}
 	}
-	XFlush(dpy);
+	XSync(dpy, False);
 
 	XtAppSetExitFlag(app_context);
 }
@@ -1616,7 +1619,7 @@ static void exit_dialog_wm_offset_cb(Widget w,
 	XtMoveWidget(w, x, y);
 }
 
-/* Button press handler for xt_sigterm_handler confirmation dialog */
+/* Button press handler for logout confirmation dialog */
 static void exit_dialog_cb(Widget w,
 	XtPointer client_data, XtPointer call_data)
 {
@@ -1634,6 +1637,11 @@ static void xt_sigusr1_handler(XtPointer ptr, XtSignalId *id)
 	}
 }
 
+static void xt_sigusr2_handler(XtPointer ptr, XtSignalId *id)
+{
+	exit_session_dialog();
+}
+
 static void blank_delay_timeout_cb(XtPointer ptr, XtIntervalId *iid)
 {
 	XForceScreenSaver(XtDisplay(wshell),ScreenSaverActive);
@@ -1645,7 +1653,10 @@ static void blank_delay_timeout_cb(XtPointer ptr, XtIntervalId *iid)
  */
 static void sigusr_handler(int sig)
 {
-	if(sig == SIGUSR1) XtNoticeSignal(xt_sigusr1);
+	switch(sig) {
+		case SIGUSR1: XtNoticeSignal(xt_sigusr1); break;
+		case SIGUSR2: XtNoticeSignal(xt_sigusr2); break;
+	}
 }
 
 static void sigchld_handler(int sig)
