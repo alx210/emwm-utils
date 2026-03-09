@@ -160,6 +160,10 @@ static String fallback_res[]={
 #define _NET_NUMBER_OF_DESKTOPS "_NET_NUMBER_OF_DESKTOPS"
 #define _NET_CURRENT_DESKTOP "_NET_CURRENT_DESKTOP"
 
+/* Microseconds to wait for session and window manager atoms at startup */
+#define UWAIT_FOR_ATOMS 250000
+#define ATOM_WAIT_RETRIES 12
+
 XtAppContext app_context;
 Widget wshell = None;
 
@@ -195,6 +199,7 @@ int main(int argc, char **argv)
 	Window root_window;
 	Widget wframe;
 	int root_event_mask = PropertyChangeMask;
+	int retries;
 	
 	rsignal(SIGUSR1, sigusr_handler);
 	rsignal(SIGUSR2, sigusr_handler);
@@ -228,13 +233,24 @@ int main(int argc, char **argv)
 		XtNumber(xrdb_resources), NULL, 0);
 	
 	/* XMSM IPC atoms */
-	xa_xmsm_mgr = XInternAtom(dpy, XMSM_ATOM_NAME, True);
+	retries = ATOM_WAIT_RETRIES;
+	while( ((xa_xmsm_mgr = XInternAtom(dpy,
+		XMSM_ATOM_NAME, True)) == None) && (retries--) ) {
+			usleep(UWAIT_FOR_ATOMS);
+	}
 	xa_xmsm_pid = XInternAtom(dpy, XMSM_PID_ATOM_NAME, True);
 	xa_xmsm_cmd = XInternAtom(dpy, XMSM_CMD_ATOM_NAME, True);
 	xa_xmsm_cfg = XInternAtom(dpy, XMSM_CFG_ATOM_NAME, True);
 	
-	/* EWMH virtual desktop atoms */
-	xa_ndesks = XInternAtom(dpy, _NET_NUMBER_OF_DESKTOPS, False);
+	/* EWMH virtual desktop atoms.
+	 * Wait for the WM to avoid reconfiguring */
+	retries = ATOM_WAIT_RETRIES;
+	while( ((xa_ndesks = XInternAtom(dpy,
+		_NET_NUMBER_OF_DESKTOPS, retries ? True : False)) == None)
+		&& (retries--) ) {
+		
+			usleep(UWAIT_FOR_ATOMS);
+	}
 	xa_cdesk = XInternAtom(dpy, _NET_CURRENT_DESKTOP, False);
 
 
