@@ -582,6 +582,8 @@ void raise_and_focus(Widget w)
  */
 static Boolean construct_menu(void)
 {
+	Arg args[10];
+	int n = 0;
 	Widget *wlevel;
 	unsigned int nlevels=1;
 	struct tb_entry *entries, *cur;
@@ -589,7 +591,8 @@ static Boolean construct_menu(void)
 
 	if((err=tb_parse_config(rc_file_path,&entries))){
 		report_rcfile_error(rc_file_path,
-			tb_parser_error_string()?tb_parser_error_string():strerror(err));
+			tb_parser_error_string() ?
+			tb_parser_error_string() : strerror(err));
 		return False;
 	}
 
@@ -599,46 +602,48 @@ static Boolean construct_menu(void)
 		return False;
 	}
 	
-	cur=entries;
+	cur = entries;
 	
 	while(cur){
-		nlevels=(cur->level > nlevels)?cur->level:nlevels;
-		cur=cur->next;
+		nlevels = (cur->level > nlevels) ? cur->level : nlevels;
+		cur = cur->next;
 	}
 	
 	if(wmenu){
 		XtUnmanageChild(wmenu);
 		XtDestroyWidget(wmenu);
 	}
+	
+	n = 0;
+	
+	XtSetArg(args[n], XmNshadowThickness, 0); n++;
+	XtSetArg(args[n], XmNspacing, 1); n++;
+	XtSetArg(args[n], XmNmarginWidth, 0); n++;
+	XtSetArg(args[n], XmNorientation,
+		(app_res.horizontal ? XmHORIZONTAL:XmVERTICAL)); n++;
+	XtSetArg(args[n], XmNpacking,
+		(app_res.horizontal ? XmPACK_TIGHT:XmPACK_COLUMN)); n++;
+	XtSetArg(args[n], XmNrowColumnType, XmMENU_BAR); n++;
+	XtSetArg(args[n], XmNpositionIndex, 0); n++;
 
-	wmenu=XmVaCreateManagedRowColumn(wmain,"menu",
-		XmNshadowThickness, 0,
-		XmNspacing, 1,
-		XmNmarginWidth, 0,
-		XmNorientation, (app_res.horizontal ? XmHORIZONTAL:XmVERTICAL),
-		XmNrowColumnType, XmMENU_BAR,
-		XmNpacking, (app_res.horizontal ? XmPACK_TIGHT:XmPACK_COLUMN),
-		XmNpositionIndex, 0,
-		NULL);
+	wmenu = XmCreateRowColumn(wmain,"menu", args, n);
 
 	#ifdef DEBUG_MENU
 	printf("Max %d cascade levels\n",nlevels);
 	#endif
 
-	wlevel=calloc(nlevels+1,sizeof(Widget));
+	wlevel = calloc(nlevels + 1, sizeof(Widget));
 	if(!wlevel){
 		perror("malloc");
 		return False;
 	}
 	
-	cur=entries;
-	wlevel[0]=wmenu;
+	cur = entries;
+	wlevel[0] = wmenu;
 	
 	while(cur){
 		Widget w;
 		XmString title;
-		Arg args[10];
-		int n;
 
 		if(cur->type == TBE_CASCADE && cur->next){
 			Widget new_pulldown, new_cascade;
@@ -650,46 +655,56 @@ static Boolean construct_menu(void)
 				wlevel[cur->level],"commandPulldown",NULL,0);
 			
 			title=XmStringCreateLocalized(cur->title);
-			n=0;
-			XtSetArg(args[n],XmNlabelString,title); n++;
-			XtSetArg(args[n],XmNmnemonic,(KeySym)cur->mnemonic); n++;
-			XtSetArg(args[n],XmNsubMenuId,new_pulldown); n++;
-			new_cascade=XmCreateCascadeButtonGadget(
+			
+			n = 0;
+			XtSetArg(args[n], XmNlabelString, title); n++;
+			XtSetArg(args[n], XmNmnemonic, (KeySym)cur->mnemonic); n++;
+			XtSetArg(args[n], XmNsubMenuId, new_pulldown); n++;
+			new_cascade = XmCreateCascadeButtonGadget(
 				wlevel[cur->level],"cascadeButton",args,n);
+			
 			XmStringFree(title);
 		
-			wlevel[cur->next->level]=new_pulldown;
+			wlevel[cur->next->level] = new_pulldown;
 						
 			XtManageChild(new_cascade);
 		
 		}else if(cur->type == TBE_COMMAND){
 			XtCallbackRec push_callback[]={
-				{(XtCallbackProc)menu_command_cb,(XtPointer)cur->command},
-				{(XtCallbackProc)NULL,(XtPointer)NULL}
+				{ (XtCallbackProc)menu_command_cb, (XtPointer)cur->command},
+				{ (XtCallbackProc)NULL, (XtPointer)NULL}
 			};
 			#ifdef DEBUG_MENU
 			printf("Adding Command: %s; Level: %d\n",cur->title,cur->level);
 			#endif
+			
 			title=XmStringCreateLocalized(cur->title);
-			n=0;
-			XtSetArg(args[n],XmNlabelString,title); n++;
+
+			n = 0;
+			XtSetArg(args[n], XmNlabelString, title); n++;
 			if(cur->mnemonic){
-				XtSetArg(args[n],XmNmnemonic,(KeySym)cur->mnemonic);
+				XtSetArg(args[n], XmNmnemonic, (KeySym)cur->mnemonic);
 				n++;
 			}
-			XtSetArg(args[n],XmNactivateCallback,push_callback); n++;
-			w=XmCreatePushButtonGadget(wlevel[cur->level],
-				"menuButton",args,n);
+			XtSetArg(args[n], XmNactivateCallback, push_callback); n++;
+			w = XmCreatePushButtonGadget(
+				wlevel[cur->level], "menuButton",args,n);
+
 			XmStringFree(title);
 			XtManageChild(w);
+
 		}else if(cur->type == TBE_SEPARATOR){
-			w=XmCreateSeparatorGadget(wlevel[cur->level],"separator",NULL,0);
+			w = XmCreateSeparatorGadget(
+				wlevel[cur->level], "separator", NULL, 0);
+
 			XtManageChild(w);
 		}
-		cur=cur->next;
+		cur = cur->next;
 	}
 
 	free(wlevel);
+	
+	XtManageChild(wmenu);
 	
 	return True;
 }
@@ -1111,18 +1126,18 @@ static int exec_command(const char *cmd_spec)
 {
 	pid_t pid;
 	char *str;
-	char *p,*t;
-	char pc=0;
-	int done=0;
-	char **argv=NULL;
-	size_t argv_size=0;
-	unsigned int argc=0;
-	volatile int errval=0;
+	char *p, *t;
+	char pc = 0;
+	int done = 0;
+	char **argv = NULL;
+	size_t argv_size = 0;
+	unsigned int argc = 0;
+	volatile int errval = 0;
 	
 	str = strdup(cmd_spec);
 
-	p=str;
-	t=NULL;
+	p = str;
+	t = NULL;
 	
 	/* split the command string into separate arguments */
 	while(!done){
@@ -1168,7 +1183,7 @@ static int exec_command(const char *cmd_spec)
 			printf("argv[%d]: %s\n",argc,argv[argc]);
 			#endif
 			
-			t=NULL;
+			t = NULL;
 			argc++;
 		}
 		pc = *p;
@@ -1176,17 +1191,18 @@ static int exec_command(const char *cmd_spec)
 	}
 	
 	if(!argc) return EINVAL;
-	argv[argc]=NULL;
+	argv[argc] = NULL;
 	
-	pid=vfork();
+	pid = vfork();
 	if(pid == 0){
 		setsid();
 		
 		if(execvp(argv[0],argv) == (-1))
-			errval=errno;
+			errval = errno;
+
 		_exit(0);
 	}else if(pid == -1){
-		errval=errno;
+		errval = errno;
 	}
 	
 	free(str);
