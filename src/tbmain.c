@@ -149,11 +149,14 @@ static String fallback_res[]={
 #define APP_NAME "xmtoolbox"
 #define RC_NAME	"toolboxrc"
 
-/* MWM workspace constants (from WmGlobal.h) */
+/* MWM workspace presence Atoms (from WmGlobal.h)
+ * Needed to put the toolbox on all workspaces at startup. */
 #define _XA_MWM_WORKSPACE_PRESENCE "_MWM_WORKSPACE_PRESENCE"
 #define _XA_MWM_WORKSPACE_ALL "all"
 
-/* EWMH virtual desktop properties */
+/* EWMH virtual desktop properties. MWM has a more elaborate IPC
+ * interface for dealing with workspaces, but unless we need to
+ * do more than just indexed switching there is no need to use it. */
 #define _NET_NUMBER_OF_DESKTOPS "_NET_NUMBER_OF_DESKTOPS"
 #define _NET_CURRENT_DESKTOP "_NET_CURRENT_DESKTOP"
 
@@ -188,6 +191,7 @@ static Boolean sm_reqstat;
 
 int main(int argc, char **argv)
 {
+	Display *dpy;
 	Window root_window;
 	Widget wframe;
 	int root_event_mask = PropertyChangeMask;
@@ -204,6 +208,9 @@ int main(int argc, char **argv)
 		XmNiconName, APP_TITLE, XmNallowShellResize, True,
 		XmNmwmFunctions, MWM_FUNC_MOVE|MWM_FUNC_MINIMIZE,
 		XmNmappedWhenManaged, False, NULL);
+	
+	dpy = XtDisplay(wshell);
+	root_window = RootWindowOfScreen(XtScreen(wshell));
 
 	if(argc > 1) {
 		int i;
@@ -217,18 +224,18 @@ int main(int argc, char **argv)
 		}
 	}
 	
-	XtGetApplicationResources(wshell,&app_res,xrdb_resources,
-		XtNumber(xrdb_resources),NULL,0);
+	XtGetApplicationResources(wshell, &app_res, xrdb_resources,
+		XtNumber(xrdb_resources), NULL, 0);
 	
 	/* XMSM IPC atoms */
-	xa_xmsm_mgr = XInternAtom(XtDisplay(wshell), XMSM_ATOM_NAME, True);
-	xa_xmsm_pid = XInternAtom(XtDisplay(wshell), XMSM_PID_ATOM_NAME, True);
-	xa_xmsm_cmd = XInternAtom(XtDisplay(wshell), XMSM_CMD_ATOM_NAME, True);
-	xa_xmsm_cfg = XInternAtom(XtDisplay(wshell), XMSM_CFG_ATOM_NAME, True);
+	xa_xmsm_mgr = XInternAtom(dpy, XMSM_ATOM_NAME, True);
+	xa_xmsm_pid = XInternAtom(dpy, XMSM_PID_ATOM_NAME, True);
+	xa_xmsm_cmd = XInternAtom(dpy, XMSM_CMD_ATOM_NAME, True);
+	xa_xmsm_cfg = XInternAtom(dpy, XMSM_CFG_ATOM_NAME, True);
 	
 	/* EWMH virtual desktop atoms */
-	xa_ndesks = XInternAtom(XtDisplay(wshell), _NET_NUMBER_OF_DESKTOPS, False);
-	xa_cdesk = XInternAtom(XtDisplay(wshell), _NET_CURRENT_DESKTOP, False);
+	xa_ndesks = XInternAtom(dpy, _NET_NUMBER_OF_DESKTOPS, False);
+	xa_cdesk = XInternAtom(dpy, _NET_CURRENT_DESKTOP, False);
 
 
 	if(!get_xmsm_config(&xmsm_cfg)) 
@@ -242,18 +249,18 @@ int main(int argc, char **argv)
 		if( (login = get_login()) ) {
 			gethostname(host,255);
 
-			title=malloc(strlen(login)+strlen(host)+2);
+			title = malloc(strlen(login)+strlen(host)+2);
 			if(!title){
 				perror("malloc");
 				return EXIT_FAILURE;
 			}
-			sprintf(title,"%s@%s",login,host);
-			XtVaSetValues(wshell,XmNtitle,title,NULL);
+			sprintf(title, "%s@%s", login,host);
+			XtVaSetValues(wshell, XmNtitle, title, NULL);
 			free(title);
 		}
 	}
 
-	wframe = XmVaCreateManagedFrame(wshell,"mainFrame",
+	wframe = XmVaCreateManagedFrame(wshell, "mainFrame",
 		XmNshadowType, XmSHADOW_OUT, NULL);
 	
 	wmain = XmVaCreateManagedRowColumn(wframe, "main",
@@ -263,7 +270,7 @@ int main(int argc, char **argv)
 		XmNorientation, (app_res.horizontal ? XmHORIZONTAL:XmVERTICAL),
 		NULL);
 
-	rc_file_path=(app_res.rc_file)?app_res.rc_file:find_rc_file();
+	rc_file_path = (app_res.rc_file) ? app_res.rc_file : find_rc_file();
 	
 	if(rc_file_path){
 		if(access(rc_file_path, R_OK) == -1){
@@ -280,9 +287,6 @@ int main(int argc, char **argv)
 
 	create_utility_widgets(wmain);
 	
-	root_window = XDefaultRootWindow(XtDisplay(wshell));
-	xt_sigusr1 = XtAppAddSignal(app_context,xt_sigusr1_handler,NULL);
-	
 	XtRealizeWidget(wshell);
 	if(app_res.occupy_all) set_ws_presence(wshell);
 	set_icon(wshell);
@@ -296,10 +300,12 @@ int main(int argc, char **argv)
 		XmProcessTraversal(wswitch, XmTRAVERSE_CURRENT);
 
 	XSelectInput(XtDisplay(wshell), root_window, root_event_mask);
-
+	
+	xt_sigusr1 = XtAppAddSignal(app_context, xt_sigusr1_handler, NULL);
+	
 	for(;;) {
 		XEvent evt;
-		XtAppNextEvent(app_context,&evt);
+		XtAppNextEvent(app_context, &evt);
 		if(evt.xany.window == root_window)
 			handle_root_event(&evt);
 		else
@@ -404,7 +410,7 @@ static Boolean setup_hotkeys(void)
 	}
 	hotkey_code = XKeysymToKeycode(XtDisplay(wshell), key_sym);
 	
-	root_window = XDefaultRootWindow(XtDisplay(wshell));
+	root_window = RootWindowOfScreen(XtScreen(wshell));
 	
 	XSync(XtDisplay(wshell), False);
 	def_x_err_handler = XSetErrorHandler(xgrabkey_err_handler);
@@ -439,7 +445,7 @@ static int xgrabkey_err_handler(Display *dpy, XErrorEvent *evt)
 }
 
 /*
- * Called whenever the hotkey handler widget receives a KeyPress event
+ * Root event (KeyPress and PropertyNotify) handler
  */
 static void handle_root_event(XEvent *evt)
 {
@@ -502,55 +508,54 @@ static void handle_root_event(XEvent *evt)
  */
 void raise_and_focus(Widget w)
 {
-	static Atom XaNET_ACTIVE_WINDOW=None;
-	static Atom XaWM_STATE=None;
-	static Atom XaWM_CHANGE_STATE=None;
+	static Atom XaNET_ACTIVE_WINDOW = None;
+	static Atom XaWM_STATE = None;
+	static Atom XaWM_CHANGE_STATE = None;
 	Atom ret_type;
 	int ret_fmt;
 	unsigned long ret_items;
 	unsigned long ret_bytes;
-	uint32_t *state=NULL;
+	uint32_t *state = NULL;
 	XClientMessageEvent evt;
 	Display *dpy = XtDisplay(wshell);
 
-	if(XaWM_STATE==None){
-		XaWM_STATE=XInternAtom(dpy,"WM_STATE",True);
-		XaWM_CHANGE_STATE=XInternAtom(dpy,"WM_CHANGE_STATE",True);
-		XaNET_ACTIVE_WINDOW=XInternAtom(dpy,"_NET_ACTIVE_WINDOW",True);
+	if(XaWM_STATE == None){
+		XaWM_STATE = XInternAtom(dpy, "WM_STATE", True);
+		XaWM_CHANGE_STATE = XInternAtom(dpy, "WM_CHANGE_STATE", True);
+		XaNET_ACTIVE_WINDOW = XInternAtom(dpy, "_NET_ACTIVE_WINDOW", True);
 	}
 
-	if(XaWM_STATE==None) return;
+	if(XaWM_STATE == None) return;
 
-	if(XGetWindowProperty(dpy,XtWindow(w),XaWM_STATE,0,1,
-		False,XaWM_STATE,&ret_type,&ret_fmt,&ret_items,
-		&ret_bytes,(unsigned char**)&state)!=Success) return;
-	if(ret_type==XaWM_STATE && ret_fmt && *state==IconicState){
-		evt.type=ClientMessage;
-		evt.send_event=True;
-		evt.message_type=XaWM_CHANGE_STATE;
-		evt.display=dpy;
-		evt.window=XtWindow(w);
-		evt.format=32;
-		evt.data.l[0]=NormalState;
-		XSendEvent(dpy,XDefaultRootWindow(dpy),True,
-			SubstructureNotifyMask|SubstructureRedirectMask,
-			(XEvent*)&evt);
+	if(XGetWindowProperty(dpy, XtWindow(w), XaWM_STATE, 0, 1,
+		False, XaWM_STATE, &ret_type, &ret_fmt, &ret_items,
+		&ret_bytes, (unsigned char**)&state) != Success) return;
+	if(ret_type == XaWM_STATE && ret_fmt && *state == IconicState){
+		evt.type = ClientMessage;
+		evt.send_event = True;
+		evt.message_type = XaWM_CHANGE_STATE;
+		evt.display = dpy;
+		evt.window = XtWindow(w);
+		evt.format = 32;
+		evt.data.l[0] = NormalState;
+		XSendEvent(dpy, RootWindowOfScreen(XtScreen(wshell)), True,
+			SubstructureNotifyMask | SubstructureRedirectMask, (XEvent*)&evt);
 	}else{
 		if(XaNET_ACTIVE_WINDOW){
-			evt.type=ClientMessage,
-			evt.send_event=True;
-			evt.serial=0;
-			evt.display=dpy;
-			evt.window=XtWindow(w);
-			evt.message_type=XaNET_ACTIVE_WINDOW;
-			evt.format=32;
+			evt.type = ClientMessage,
+			evt.send_event = True;
+			evt.serial = 0;
+			evt.display = dpy;
+			evt.window = XtWindow(w);
+			evt.message_type = XaNET_ACTIVE_WINDOW;
+			evt.format = 32;
 
-			XSendEvent(dpy,XDefaultRootWindow(dpy),False,
-				SubstructureNotifyMask|SubstructureRedirectMask,(XEvent*)&evt);
+			XSendEvent(dpy, RootWindowOfScreen(XtScreen(wshell)), False,
+				SubstructureNotifyMask|SubstructureRedirectMask, (XEvent*)&evt);
 		}else{
-			XRaiseWindow(dpy,XtWindow(w));
-			XSync(dpy,False);
-			XSetInputFocus(dpy,XtWindow(w),RevertToParent,CurrentTime);
+			XRaiseWindow(dpy, XtWindow(w));
+			XSync(dpy, False);
+			XSetInputFocus(dpy, XtWindow(w), RevertToParent, CurrentTime);
 		}
 	}
 	XFree((char*)state);
@@ -1210,7 +1215,7 @@ static void menu_command_cb(Widget w,
 static Boolean send_xmsm_cmd(const char *command)
 {
 	Display *dpy = XtDisplay(wshell);
-	Window root = DefaultRootWindow(dpy);
+	Window root = RootWindowOfScreen(XtScreen(wshell));
 	Window shell;
 	Atom ret_type;
 	int ret_format;
@@ -1266,7 +1271,7 @@ static Boolean send_xmsm_cmd(const char *command)
 static Boolean get_xmsm_config(unsigned long *flags)
 {
 	Display *dpy = XtDisplay(wshell);
-	Window root = DefaultRootWindow(dpy);
+	Window root = RootWindowOfScreen(XtScreen(wshell));
 	Atom ret_type;
 	int ret_format;
 	unsigned long ret_items;
@@ -1305,7 +1310,7 @@ static Boolean get_ws_info(unsigned short *ws_count, unsigned short *iactive)
 {
 	Boolean success = True;
 	Display *dpy = XtDisplay(wshell);
-	Window root = DefaultRootWindow(dpy);
+	Window root = RootWindowOfScreen(XtScreen(wshell));
 
 	Atom ret_type;
 	int ret_format;
@@ -1342,7 +1347,7 @@ static Boolean get_ws_info(unsigned short *ws_count, unsigned short *iactive)
 static void ws_change_cb(Widget w, XtPointer client_data, XtPointer call_data)
 {
 	Display *dpy = XtDisplay(wshell);
-	Window root_wnd = XDefaultRootWindow(XtDisplay(wshell));
+	Window root_wnd = RootWindowOfScreen(XtScreen(wshell));
 	short *index = (short*)call_data;
 
 	XClientMessageEvent evt = {
