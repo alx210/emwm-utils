@@ -1358,6 +1358,8 @@ static Boolean get_ws_info(unsigned short *ws_count, unsigned short *iactive)
 	unsigned long left_items;
 	unsigned char *prop_data;
 	
+	if(xa_ndesks == None || xa_cdesk == None) return False;
+	
 	XGetWindowProperty(dpy, root, xa_ndesks, 0, sizeof(unsigned long),
 			False, XA_CARDINAL, &ret_type, &ret_format, &ret_items,
 			&left_items, &prop_data);
