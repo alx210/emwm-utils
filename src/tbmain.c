@@ -731,14 +731,16 @@ static void create_utility_widgets(Widget wparent)
 	if(app_res.separators) XtManageChild(w);
 	
 	/* 'Session' menu */
-	wmenu = XmVaCreateManagedRowColumn(wparent, "menu",
-		XmNshadowThickness, 0,
-		XmNspacing, 1,
-		XmNmarginWidth, 0,
-		XmNorientation, (app_res.horizontal ? XmHORIZONTAL:XmVERTICAL),
-		XmNrowColumnType, XmMENU_BAR, NULL);
+	n = 0;
+	XtSetArg(args[n], XmNshadowThickness, 0); n++;
+	XtSetArg(args[n], XmNspacing, 1); n++;
+	XtSetArg(args[n], XmNmarginWidth, 0); n++;
+	XtSetArg(args[n], XmNorientation,
+		(app_res.horizontal ? XmHORIZONTAL:XmVERTICAL)); n++;
+	XtSetArg(args[n], XmNrowColumnType, XmMENU_BAR); n++;
+	wmenu = XmCreateRowColumn(wparent, "menu", args, n);
 	
-	wpulldown=XmCreatePulldownMenu(wmenu,"sessionPulldown",NULL,0);
+	wpulldown = XmCreatePulldownMenu(wmenu,"sessionPulldown",NULL,0);
 			
 	title = XmStringCreateLocalized("Session");
 	n=0;
@@ -795,7 +797,8 @@ static void create_utility_widgets(Widget wparent)
 		XmStringFree(title);
 		XtManageChild(w);
 	}
-
+	XtManageChild(wmenu);
+	
 	XtSetArg(args[0], XmNorientation,
 		(app_res.horizontal ? XmVERTICAL:XmHORIZONTAL));
 	wgadsep = XmCreateSeparatorGadget(wparent, "separator", args, 1);
@@ -806,6 +809,7 @@ static void create_utility_widgets(Widget wparent)
 		XmNmarginHeight, 3,
 		XmNspacing, 3,
 		XmNorientation, (app_res.horizontal ? XmHORIZONTAL:XmVERTICAL),
+		XmNpacking, (app_res.horizontal ? XmPACK_TIGHT:XmPACK_COLUMN),
 		NULL);
 
 	/* The workspace switcher */
@@ -832,6 +836,10 @@ static void create_utility_widgets(Widget wparent)
 
 	n = 0;
 	XtSetArg(args[n], XmNalignment, XmALIGNMENT_CENTER); n++;
+	/* the RC will center the label initially, but if it recomputes
+	 * its size on time update the label shifts to upper left */
+	XtSetArg(args[n], XmNrecomputeSize,
+		(app_res.horizontal ? True : False)); n++;
 	wdtlabel = XmCreateLabelGadget(wdtframe, "dateTime", args, n);
 	if(app_res.show_date_time){
 		XtManageChild(wdtlabel);
