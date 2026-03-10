@@ -215,6 +215,6 @@ char* get_login(void)
 
 void print_version(const char *name)
 {
-	printf("%s [WSM Branch - Alpha] %d.%d.%d\n",
+	printf("%s [WSM Branch - Beta 1] %d.%d.%d\n",
 		name, VER_MAJOR, VER_MINOR, VER_UPLVL);
 }
