@@ -1467,6 +1467,7 @@ static void exit_session_dialog(void)
 		}
 		
 		XtRealizeWidget(wdlgshell);
+		XMoveWindow(dpy, XtWindow(wdlgshell), 0, 0);
 		
 		XmAddProtocolCallback(wdlgshell,
 			xa_MOTIF_WM_MESSAGES, xa_MOTIF_WM_OFFSET,
@@ -1531,6 +1532,7 @@ static void exit_session_dialog(void)
 	
 	XtManageChild(wdialog);
 	XtMapWidget(wdlgshell);
+	XRaiseWindow(dpy, XtWindow(wdlgshell));
 
 	while(XtIsManaged(wdialog) && (wresult == None))
 		XtAppProcessEvent(app_context, XtIMXEvent);
