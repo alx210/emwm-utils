@@ -819,13 +819,15 @@ static void create_utility_widgets(Widget wparent)
 	wgadsep = XmCreateSeparatorGadget(wparent, "separator", args, 1);
 
 	/* Time and workspace switcher RC */
-	wgadrc = XmVaCreateRowColumn(wparent, "gadgets",
-		XmNmarginWidth, 3,
-		XmNmarginHeight, 3,
-		XmNspacing, 3,
-		XmNorientation, (app_res.horizontal ? XmHORIZONTAL:XmVERTICAL),
-		XmNpacking, (app_res.horizontal ? XmPACK_TIGHT:XmPACK_COLUMN),
-		NULL);
+	n = 0;
+	XtSetArg(args[n], XmNmarginWidth, 3); n++;
+	XtSetArg(args[n], XmNmarginHeight, 3); n++;
+	XtSetArg(args[n], XmNspacing, 3); n++;
+	XtSetArg(args[n], XmNpacking, XmPACK_TIGHT); n++;
+	XtSetArg(args[n], XmNorientation,
+		(app_res.horizontal ? XmHORIZONTAL:XmVERTICAL)); n++;
+
+	wgadrc = XmCreateRowColumn(wparent, "gadgets", args, n);
 
 	/* The workspace switcher */
 	n = 0;
