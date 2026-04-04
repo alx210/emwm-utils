@@ -853,10 +853,6 @@ static void create_utility_widgets(Widget wparent)
 
 	n = 0;
 	XtSetArg(args[n], XmNalignment, XmALIGNMENT_CENTER); n++;
-	/* the RC will center the label initially, but if it recomputes
-	 * its size on time update the label shifts to upper left */
-	XtSetArg(args[n], XmNrecomputeSize,
-		(app_res.horizontal ? True : False)); n++;
 	wdtlabel = XmCreateLabelGadget(wdtframe, "dateTime", args, n);
 	if(app_res.show_date_time){
 		XtManageChild(wdtlabel);
@@ -930,21 +926,31 @@ static char* find_rc_file(void)
  */
 static void time_update_cb(XtPointer client_data, XtIntervalId *id)
 {
+	Arg args[2];
 	char time_str[256];
 	time_t secs;
 	struct tm *the_time;
 	XmString xm_str;
+	static Boolean init = True;
 	
 	time(&secs);
-	the_time=localtime(&secs);
-	strftime(time_str,255,app_res.date_time_fmt,the_time);
-	xm_str=XmStringCreateLocalized(time_str);
-	
-	XtVaSetValues(wdtlabel, XmNlabelString, xm_str, NULL);
+	the_time = localtime(&secs);
+	strftime(time_str, 255, app_res.date_time_fmt, the_time);
+	xm_str = XmStringCreateLocalized(time_str);
+
+	XtSetArg(args[0], XmNlabelString, xm_str);
+	XtSetValues(wdtlabel, args, 1);
+
+	if(init) {
+		XtSetArg(args[0], XmNrecomputeSize, False);
+		XtSetValues(wdtlabel, args, 1);
+		init = False;
+	}
+
 	XmStringFree(xm_str);
 	
 	XtAppAddTimeOut(app_context,
-		60000-(the_time->tm_sec*1000),time_update_cb,NULL);
+		60000-(the_time->tm_sec * 1000), time_update_cb, NULL);
 }
 
 /*
