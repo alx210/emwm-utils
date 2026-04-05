@@ -589,7 +589,7 @@ static Boolean construct_menu(void)
 	struct tb_entry *entries, *cur;
 	int err;
 
-	if((err=tb_parse_config(rc_file_path,&entries))){
+	if((err=tb_parse_config(rc_file_path, &entries))){
 		report_rcfile_error(rc_file_path,
 			tb_parser_error_string() ?
 			tb_parser_error_string() : strerror(err));
@@ -626,7 +626,7 @@ static Boolean construct_menu(void)
 	XtSetArg(args[n], XmNrowColumnType, XmMENU_BAR); n++;
 	XtSetArg(args[n], XmNpositionIndex, 0); n++;
 
-	wmenu = XmCreateRowColumn(wmain,"menu", args, n);
+	wmenu = XmCreateRowColumn(wmain, "menu", args, n);
 
 	#ifdef DEBUG_MENU
 	printf("Max %d cascade levels\n",nlevels);
@@ -762,7 +762,7 @@ static void create_utility_widgets(Widget wparent)
 	XtSetArg(args[n], XmNlabelString, title); n++;
 	XtSetArg(args[n], XmNmnemonic, (KeySym)'S'); n++;
 	XtSetArg(args[n], XmNsubMenuId, wpulldown); n++;
-	wcascade = XmCreateCascadeButtonGadget(wmenu, "cascadeButton", args, n);
+	wcascade = XmCreateCascadeButtonGadget(wmenu, "session", args, n);
 	XmStringFree(title);
 	XtManageChild(wcascade);
 		
@@ -772,7 +772,7 @@ static void create_utility_widgets(Widget wparent)
 	XtSetArg(args[n], XmNlabelString, title); n++;
 	XtSetArg(args[n], XmNmnemonic, (KeySym)'E'); n++;
 	XtSetArg(args[n], XmNactivateCallback, cbr); n++;
-	w = XmCreatePushButtonGadget(wpulldown, "execMenuButton", args, n);
+	w = XmCreatePushButtonGadget(wpulldown, "execute", args, n);
 	XmStringFree(title);
 	XtManageChild(w);
 
@@ -786,7 +786,7 @@ static void create_utility_widgets(Widget wparent)
 		XtSetArg(args[n], XmNlabelString, title); n++;
 		XtSetArg(args[n], XmNmnemonic, (KeySym)'L'); n++;
 		XtSetArg(args[n], XmNactivateCallback, cbr); n++;
-		w = XmCreatePushButtonGadget(wpulldown,"lockMenuButton", args, n);
+		w = XmCreatePushButtonGadget(wpulldown, "lock", args, n);
 		XmStringFree(title);
 		XtManageChild(w);
 	}
@@ -794,10 +794,10 @@ static void create_utility_widgets(Widget wparent)
 	n = 0;
 	cbr[0].callback = logout_cb;
 	title=XmStringCreateLocalized("Logout...");
-	XtSetArg(args[n], XmNlabelString,title); n++;
-	XtSetArg(args[n], XmNmnemonic,(KeySym)'o'); n++;
+	XtSetArg(args[n], XmNlabelString, title); n++;
+	XtSetArg(args[n], XmNmnemonic, (KeySym)'o'); n++;
 	XtSetArg(args[n], XmNactivateCallback, cbr); n++;
-	w = XmCreatePushButtonGadget(wpulldown,"logoutMenuButton",args,n);
+	w = XmCreatePushButtonGadget(wpulldown, "logout", args, n);
 	XmStringFree(title);
 	XtManageChild(w);
 
@@ -808,7 +808,7 @@ static void create_utility_widgets(Widget wparent)
 		XtSetArg(args[n], XmNlabelString,title); n++;
 		XtSetArg(args[n], XmNmnemonic,(KeySym)'S'); n++;
 		XtSetArg(args[n], XmNactivateCallback, cbr); n++;
-		w = XmCreatePushButtonGadget(wpulldown, "suspendMenuButton", args, n);
+		w = XmCreatePushButtonGadget(wpulldown, "suspend", args, n);
 		XmStringFree(title);
 		XtManageChild(w);
 	}
