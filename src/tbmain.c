@@ -729,7 +729,7 @@ static void report_rcfile_error(const char *rc_file, const char *err_desc)
 
 static void create_utility_widgets(Widget wparent)
 {
-	XtCallbackRec cbr[2] = { NULL };
+	XtCallbackRec cbr[2] = { { NULL, NULL } };
 	Widget wmenu;
 	Widget wpulldown;
 	Widget wcascade;
@@ -1150,7 +1150,7 @@ static int exec_command(const char *cmd_spec)
 	/* split the command string into separate arguments */
 	while(!done){
 		if(!t){
-			while(*p && isblank(*p)) p++;
+			while(*p && isblank((int)*p)) p++;
 			if(*p == '\0') break;
 			t = p;
 		}
@@ -1172,7 +1172,7 @@ static int exec_command(const char *cmd_spec)
 				memmove(p, p + 1, strlen(p));
 			}
 		}
-		if(isblank(*p) || *p == '\0'){
+		if(isblank((int)*p) || *p == '\0'){
 			if(*p == '\0') done = 1;
 			if(argv_size < argc+1){
 				char **new_ptr;
