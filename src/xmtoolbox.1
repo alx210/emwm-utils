@@ -52,6 +52,20 @@ on command line with the \fB-rcfile\fP option, its location defaults to
 \fB.toolboxrc\fP in user's home directory and \fBtoolboxrc\fP in any of system
 configuration directories e.g. /etc/X11, /usr/lib/X11.
 .SS Menu Definition Syntax
+.PP
+.nf
+
+# Comment
+
+MenuTitle
+{
+	ApplicationTitle: Command
+	ApplicationTitle: Command
+	[SEPARATOR]
+	...
+}
+
+.fi
 A menu is defined by specifying the menu title followed by the opening menu
 scope delimiter { on an otherwise empty line. Menu items are defined one per
 line within the scope. The scope is terminated with the menu scope closing
@@ -74,19 +88,6 @@ The command string may also contain sh(1) like ($... and ${...}) environment
 variables, which will be expanded accordingly. A literal $ may be specified
 with $$. Undefined variables are not treated as error and expand to nothing,
 though a warning is printed to stderr.
-.PP
-Accompanying BNF notation:
-.nf
-
-# <comment>
-
-<menu title>
-{
-	<application title>: <command>
-	|SEPARATOR
-	...
-}
-.fi
 .SH RESOURCES
 .TP
 \fBtitle\fP \fIString\fP
